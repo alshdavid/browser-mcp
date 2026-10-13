@@ -44,7 +44,10 @@ pub async fn main(args: StdioCommand) -> anyhow::Result<()> {
       .await;
 
       if let Ok(Some(latest)) = available {
-        eprintln!("Update available: {} -> {}  (run `browser-mcp update`)", version, latest);
+        eprintln!(
+          "Update available: {} -> {}  (run `browser-mcp update`)",
+          version, latest
+        );
       }
     }
   });

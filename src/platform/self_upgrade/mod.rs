@@ -10,7 +10,7 @@ const BIN_NAME: &str = "browser-mcp";
 pub const TARGET_REPO: &str = "alshdavid/browser-mcp";
 
 pub async fn check_for_update(
-  options: &UpgradeOptions<'_>,
+  options: &UpgradeOptions<'_>
 ) -> anyhow::Result<Option<semver::Version>> {
   if is_prerelease(options.current_version)? {
     return Ok(None);
