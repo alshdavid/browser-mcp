@@ -92,6 +92,8 @@ dependencies = [
  "anyhow",
  "clap",
  "rmcp",
+ "serde",
+ "serde_json",
  "tokio",
 ]
 
