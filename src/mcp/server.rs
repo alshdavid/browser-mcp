@@ -17,6 +17,7 @@ use rmcp::tool_handler;
 use rmcp::tool_router;
 
 use crate::mcp::schema;
+use crate::mcp::tool_context::ToolContext;
 use crate::mcp::tools::click::ClickRequest;
 use crate::mcp::tools::click::click;
 use crate::mcp::tools::close_page::ClosePageRequest;
@@ -81,19 +82,21 @@ use crate::mcp::tools::wait_for::wait_for;
 #[derive(Debug, Clone)]
 pub struct BrowserServer {
   tool_router: ToolRouter<Self>,
+  tool_context: ToolContext,
 }
 
 impl BrowserServer {
-  pub fn new() -> Self {
+  pub fn new(tool_context: ToolContext) -> Self {
     Self {
       tool_router: Self::tool_router(),
+      tool_context,
     }
   }
 }
 
 impl Default for BrowserServer {
   fn default() -> Self {
-    Self::new()
+    Self::new(ToolContext::default())
   }
 }
 
@@ -101,238 +104,272 @@ impl Default for BrowserServer {
 impl BrowserServer {
   #[tool(description = "Clicks on the provided element")]
   async fn click(
-    Parameters(request): Parameters<ClickRequest>
+    &self,
+    Parameters(request): Parameters<ClickRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    click(Parameters(request)).await
+    click(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(description = "Closes the page by its index. The last open page cannot be closed.")]
   async fn close_page(
-    Parameters(request): Parameters<ClosePageRequest>
+    &self,
+    Parameters(request): Parameters<ClosePageRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    close_page(Parameters(request)).await
+    close_page(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(description = "Drag an element onto another element")]
-  async fn drag(Parameters(request): Parameters<DragRequest>) -> Result<CallToolResult, ErrorData> {
-    drag(Parameters(request)).await
+  async fn drag(
+    &self,
+    Parameters(request): Parameters<DragRequest>,
+  ) -> Result<CallToolResult, ErrorData> {
+    drag(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(description = "Emulates various features on the target page.")]
   async fn emulate(
-    Parameters(request): Parameters<EmulateRequest>
+    &self,
+    Parameters(request): Parameters<EmulateRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    emulate(Parameters(request)).await
+    emulate(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(
     description = "Evaluate a JavaScript function inside the target page. Returns the response as JSON, so returned values have to be JSON-serializable."
   )]
   async fn evaluate_script(
-    Parameters(request): Parameters<EvaluateScriptRequest>
+    &self,
+    Parameters(request): Parameters<EvaluateScriptRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    evaluate_script(Parameters(request)).await
+    evaluate_script(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(
     description = "Type text into an input, text area or select an option from a <select> element."
   )]
-  async fn fill(Parameters(request): Parameters<FillRequest>) -> Result<CallToolResult, ErrorData> {
-    fill(Parameters(request)).await
+  async fn fill(
+    &self,
+    Parameters(request): Parameters<FillRequest>,
+  ) -> Result<CallToolResult, ErrorData> {
+    fill(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(
     description = "Fill out multiple form elements (inputs, selects, checkboxes, radios) at once. ALWAYS prefer this tool over multiple individual 'fill' or 'click' calls when interacting with forms. It is significantly faster, more reliable, and reduces turn count. Example: Fill username, password, and check \"Remember Me\" in one call."
   )]
   async fn fill_form(
-    Parameters(request): Parameters<FillFormRequest>
+    &self,
+    Parameters(request): Parameters<FillFormRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    fill_form(Parameters(request)).await
+    fill_form(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(
     description = "Gets a console message by its ID. You can get all messages by calling list_console_messages."
   )]
   async fn get_console_message(
-    Parameters(request): Parameters<GetConsoleMessageRequest>
+    &self,
+    Parameters(request): Parameters<GetConsoleMessageRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    get_console_message(Parameters(request)).await
+    get_console_message(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(
     description = "Retrieve matched CSS rules, inline styles, inherited styles, and cascade information for an element identified by its UID.\nUse this tool to debug why specific CSS properties are applied, overridden, or conflicting. Results are paginated and return 10 rules per page by default; use pageIdx to page through the remaining rules. Requires a UID from take_snapshot."
   )]
   async fn get_css_styles(
-    Parameters(request): Parameters<GetCssStylesRequest>
+    &self,
+    Parameters(request): Parameters<GetCssStylesRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    get_css_styles(Parameters(request)).await
+    get_css_styles(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(
     description = "Gets a network request by an optional reqid, if omitted returns the currently selected request in the DevTools Network panel. Useful for inspecting request headers (including 'Cookie') and response headers (including 'Set-Cookie' and directives)."
   )]
   async fn get_network_request(
-    Parameters(request): Parameters<GetNetworkRequestRequest>
+    &self,
+    Parameters(request): Parameters<GetNetworkRequestRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    get_network_request(Parameters(request)).await
+    get_network_request(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(description = "If a browser dialog was opened, use this command to handle it")]
   async fn handle_dialog(
-    Parameters(request): Parameters<HandleDialogRequest>
+    &self,
+    Parameters(request): Parameters<HandleDialogRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    handle_dialog(Parameters(request)).await
+    handle_dialog(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(description = "Hover over the provided element")]
   async fn hover(
-    Parameters(request): Parameters<HoverRequest>
+    &self,
+    Parameters(request): Parameters<HoverRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    hover(Parameters(request)).await
+    hover(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(
     description = "Get Lighthouse score and reports for accessibility, SEO, best practices, and agentic browsing. This excludes performance. For performance audits, run performance_start_trace"
   )]
   async fn lighthouse_audit(
-    Parameters(request): Parameters<LighthouseAuditRequest>
+    &self,
+    Parameters(request): Parameters<LighthouseAuditRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    lighthouse_audit(Parameters(request)).await
+    lighthouse_audit(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(description = "List all console messages for the target page since the last navigation.")]
   async fn list_console_messages(
-    Parameters(request): Parameters<ListConsoleMessagesRequest>
+    &self,
+    Parameters(request): Parameters<ListConsoleMessagesRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    list_console_messages(Parameters(request)).await
+    list_console_messages(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(
     description = "Lists the most recent requests for the target page since the last navigation."
   )]
   async fn list_network_requests(
-    Parameters(request): Parameters<ListNetworkRequestsRequest>
+    &self,
+    Parameters(request): Parameters<ListNetworkRequestsRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    list_network_requests(Parameters(request)).await
+    list_network_requests(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(description = "Get a list of pages open in the browser.")]
   async fn list_pages(
-    Parameters(request): Parameters<ListPagesRequest>
+    &self,
+    Parameters(request): Parameters<ListPagesRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    list_pages(Parameters(request)).await
+    list_pages(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(
     description = "Go to a URL, or back, forward, or reload. Use project URL if not specified otherwise."
   )]
   async fn navigate_page(
-    Parameters(request): Parameters<NavigatePageRequest>
+    &self,
+    Parameters(request): Parameters<NavigatePageRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    navigate_page(Parameters(request)).await
+    navigate_page(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(
     description = "Open a new tab and load a URL. Use project URL if not specified otherwise."
   )]
   async fn new_page(
-    Parameters(request): Parameters<NewPageRequest>
+    &self,
+    Parameters(request): Parameters<NewPageRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    new_page(Parameters(request)).await
+    new_page(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(
     description = "Provides more detailed information on a specific Performance Insight of an insight set that was highlighted in the results of a trace recording."
   )]
   async fn performance_analyze_insight(
-    Parameters(request): Parameters<PerformanceAnalyzeInsightRequest>
+    &self,
+    Parameters(request): Parameters<PerformanceAnalyzeInsightRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    performance_analyze_insight(Parameters(request)).await
+    performance_analyze_insight(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(
     description = "Start a performance trace on the target webpage. Use to find frontend performance issues, Core Web Vitals (LCP, INP, CLS), and improve page load speed."
   )]
   async fn performance_start_trace(
-    Parameters(request): Parameters<PerformanceStartTraceRequest>
+    &self,
+    Parameters(request): Parameters<PerformanceStartTraceRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    performance_start_trace(Parameters(request)).await
+    performance_start_trace(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(description = "Stop the active performance trace recording on the target webpage.")]
   async fn performance_stop_trace(
-    Parameters(request): Parameters<PerformanceStopTraceRequest>
+    &self,
+    Parameters(request): Parameters<PerformanceStopTraceRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    performance_stop_trace(Parameters(request)).await
+    performance_stop_trace(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(
     description = "Press a key or key combination. Use this when other input methods like fill() cannot be used (e.g., keyboard shortcuts, navigation keys, or special key combinations)."
   )]
   async fn press_key(
-    Parameters(request): Parameters<PressKeyRequest>
+    &self,
+    Parameters(request): Parameters<PressKeyRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    press_key(Parameters(request)).await
+    press_key(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(description = "Resizes the page's window so that the page has specified dimension")]
   async fn resize_page(
-    Parameters(request): Parameters<ResizePageRequest>
+    &self,
+    Parameters(request): Parameters<ResizePageRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    resize_page(Parameters(request)).await
+    resize_page(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(description = "Select a page as a context for future tool calls.")]
   async fn select_page(
-    Parameters(request): Parameters<SelectPageRequest>
+    &self,
+    Parameters(request): Parameters<SelectPageRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    select_page(Parameters(request)).await
+    select_page(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(
     description = "Capture a heap snapshot of the target page. Use to analyze the memory distribution of JavaScript objects and debug memory leaks."
   )]
   async fn take_heapsnapshot(
-    Parameters(request): Parameters<TakeHeapsnapshotRequest>
+    &self,
+    Parameters(request): Parameters<TakeHeapsnapshotRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    take_heapsnapshot(Parameters(request)).await
+    take_heapsnapshot(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(description = "Take a screenshot of the page or element.")]
   async fn take_screenshot(
-    Parameters(request): Parameters<TakeScreenshotRequest>
+    &self,
+    Parameters(request): Parameters<TakeScreenshotRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    take_screenshot(Parameters(request)).await
+    take_screenshot(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(
     description = "Take a text snapshot of the target page based on the a11y tree. The snapshot lists page elements along with a unique\nidentifier (uid). Always use the latest snapshot. Prefer taking a snapshot over taking a screenshot. The snapshot indicates the element selected\nin the DevTools Elements panel (if any)."
   )]
   async fn take_snapshot(
-    Parameters(request): Parameters<TakeSnapshotRequest>
+    &self,
+    Parameters(request): Parameters<TakeSnapshotRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    take_snapshot(Parameters(request)).await
+    take_snapshot(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(description = "Type text using keyboard into a previously focused input")]
   async fn type_text(
-    Parameters(request): Parameters<TypeTextRequest>
+    &self,
+    Parameters(request): Parameters<TypeTextRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    type_text(Parameters(request)).await
+    type_text(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(description = "Upload a file through a provided element.")]
   async fn upload_file(
-    Parameters(request): Parameters<UploadFileRequest>
+    &self,
+    Parameters(request): Parameters<UploadFileRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    upload_file(Parameters(request)).await
+    upload_file(self.tool_context.clone(), Parameters(request)).await
   }
 
   #[tool(description = "Wait for the specified text to appear on the selected page.")]
   async fn wait_for(
-    Parameters(request): Parameters<WaitForRequest>
+    &self,
+    Parameters(request): Parameters<WaitForRequest>,
   ) -> Result<CallToolResult, ErrorData> {
-    wait_for(Parameters(request)).await
+    wait_for(self.tool_context.clone(), Parameters(request)).await
   }
 }
 

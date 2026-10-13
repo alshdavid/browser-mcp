@@ -4,6 +4,8 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use crate::mcp::tool_context::ToolContext;
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct TypeTextRequest {
@@ -18,12 +20,14 @@ pub struct TypeTextRequest {
 }
 
 pub async fn type_text(
+  tool_context: ToolContext,
   Parameters(TypeTextRequest {
     page_id,
     text,
     submit_key,
-  }): Parameters<TypeTextRequest>
+  }): Parameters<TypeTextRequest>,
 ) -> Result<CallToolResult, ErrorData> {
+  let _ = tool_context;
   let _ = (page_id, text, submit_key);
   Ok(CallToolResult::success(vec![ContentBlock::text(
     "not implemented",

@@ -4,6 +4,8 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use crate::mcp::tool_context::ToolContext;
+
 #[derive(Debug, Clone, Copy, serde::Deserialize, schemars::JsonSchema)]
 pub enum NetworkConditions {
   #[serde(rename = "Offline")]
@@ -62,6 +64,7 @@ pub struct EmulateRequest {
 }
 
 pub async fn emulate(
+  tool_context: ToolContext,
   Parameters(EmulateRequest {
     page_id,
     network_conditions,
@@ -71,8 +74,9 @@ pub async fn emulate(
     color_scheme,
     viewport,
     extra_http_headers,
-  }): Parameters<EmulateRequest>
+  }): Parameters<EmulateRequest>,
 ) -> Result<CallToolResult, ErrorData> {
+  let _ = tool_context;
   let _ = (
     page_id,
     network_conditions,

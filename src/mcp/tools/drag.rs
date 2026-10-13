@@ -4,6 +4,8 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use crate::mcp::tool_context::ToolContext;
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DragRequest {
@@ -20,13 +22,15 @@ pub struct DragRequest {
 }
 
 pub async fn drag(
+  tool_context: ToolContext,
   Parameters(DragRequest {
     page_id,
     from_uid,
     to_uid,
     include_snapshot,
-  }): Parameters<DragRequest>
+  }): Parameters<DragRequest>,
 ) -> Result<CallToolResult, ErrorData> {
+  let _ = tool_context;
   let _ = (page_id, from_uid, to_uid, include_snapshot);
   Ok(CallToolResult::success(vec![ContentBlock::text(
     "not implemented",

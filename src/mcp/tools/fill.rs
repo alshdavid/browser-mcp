@@ -4,6 +4,8 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use crate::mcp::tool_context::ToolContext;
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct FillRequest {
@@ -20,13 +22,15 @@ pub struct FillRequest {
 }
 
 pub async fn fill(
+  tool_context: ToolContext,
   Parameters(FillRequest {
     page_id,
     uid,
     value,
     include_snapshot,
-  }): Parameters<FillRequest>
+  }): Parameters<FillRequest>,
 ) -> Result<CallToolResult, ErrorData> {
+  let _ = tool_context;
   let _ = (page_id, uid, value, include_snapshot);
   Ok(CallToolResult::success(vec![ContentBlock::text(
     "not implemented",

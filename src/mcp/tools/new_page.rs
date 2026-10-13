@@ -4,6 +4,8 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use crate::mcp::tool_context::ToolContext;
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct NewPageRequest {
@@ -24,13 +26,15 @@ pub struct NewPageRequest {
 }
 
 pub async fn new_page(
+  tool_context: ToolContext,
   Parameters(NewPageRequest {
     url,
     background,
     isolated_context,
     timeout,
-  }): Parameters<NewPageRequest>
+  }): Parameters<NewPageRequest>,
 ) -> Result<CallToolResult, ErrorData> {
+  let _ = tool_context;
   let _ = (url, background, isolated_context, timeout);
   Ok(CallToolResult::success(vec![ContentBlock::text(
     "not implemented",

@@ -4,6 +4,8 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use crate::mcp::tool_context::ToolContext;
+
 #[derive(Debug, Clone, Copy, serde::Deserialize, schemars::JsonSchema)]
 pub enum ScreenshotFormat {
   #[serde(rename = "png")]
@@ -47,6 +49,7 @@ fn png_default() -> Option<ScreenshotFormat> {
 }
 
 pub async fn take_screenshot(
+  tool_context: ToolContext,
   Parameters(TakeScreenshotRequest {
     page_id,
     format,
@@ -54,8 +57,9 @@ pub async fn take_screenshot(
     uid,
     full_page,
     file_path,
-  }): Parameters<TakeScreenshotRequest>
+  }): Parameters<TakeScreenshotRequest>,
 ) -> Result<CallToolResult, ErrorData> {
+  let _ = tool_context;
   let _ = (page_id, format, quality, uid, full_page, file_path);
   Ok(CallToolResult::success(vec![ContentBlock::text(
     "not implemented",

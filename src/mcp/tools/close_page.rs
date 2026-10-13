@@ -4,6 +4,8 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use crate::mcp::tool_context::ToolContext;
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ClosePageRequest {
@@ -12,8 +14,10 @@ pub struct ClosePageRequest {
 }
 
 pub async fn close_page(
-  Parameters(ClosePageRequest { page_id }): Parameters<ClosePageRequest>
+  tool_context: ToolContext,
+  Parameters(ClosePageRequest { page_id }): Parameters<ClosePageRequest>,
 ) -> Result<CallToolResult, ErrorData> {
+  let _ = tool_context;
   let _ = page_id;
   Ok(CallToolResult::success(vec![ContentBlock::text(
     "not implemented",

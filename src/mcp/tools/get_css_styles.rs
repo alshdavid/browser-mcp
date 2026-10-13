@@ -4,6 +4,8 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use crate::mcp::tool_context::ToolContext;
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct GetCssStylesRequest {
@@ -34,13 +36,15 @@ fn page_idx_default() -> Option<i64> {
 }
 
 pub async fn get_css_styles(
+  tool_context: ToolContext,
   Parameters(GetCssStylesRequest {
     page_id,
     uid,
     page_size,
     page_idx,
-  }): Parameters<GetCssStylesRequest>
+  }): Parameters<GetCssStylesRequest>,
 ) -> Result<CallToolResult, ErrorData> {
+  let _ = tool_context;
   let _ = (page_id, uid, page_size, page_idx);
   Ok(CallToolResult::success(vec![ContentBlock::text(
     "not implemented",

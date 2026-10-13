@@ -4,6 +4,8 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use crate::mcp::tool_context::ToolContext;
+
 #[derive(Debug, Clone, Copy, serde::Deserialize, schemars::JsonSchema)]
 pub enum ResourceType {
   #[serde(rename = "document")]
@@ -70,14 +72,16 @@ pub struct ListNetworkRequestsRequest {
 }
 
 pub async fn list_network_requests(
+  tool_context: ToolContext,
   Parameters(ListNetworkRequestsRequest {
     page_id,
     page_size,
     page_idx,
     resource_types,
     include_preserved_requests,
-  }): Parameters<ListNetworkRequestsRequest>
+  }): Parameters<ListNetworkRequestsRequest>,
 ) -> Result<CallToolResult, ErrorData> {
+  let _ = tool_context;
   let _ = (
     page_id,
     page_size,

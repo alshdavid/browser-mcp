@@ -4,6 +4,8 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use crate::mcp::tool_context::ToolContext;
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct PressKeyRequest {
@@ -18,12 +20,14 @@ pub struct PressKeyRequest {
 }
 
 pub async fn press_key(
+  tool_context: ToolContext,
   Parameters(PressKeyRequest {
     page_id,
     key,
     include_snapshot,
-  }): Parameters<PressKeyRequest>
+  }): Parameters<PressKeyRequest>,
 ) -> Result<CallToolResult, ErrorData> {
+  let _ = tool_context;
   let _ = (page_id, key, include_snapshot);
   Ok(CallToolResult::success(vec![ContentBlock::text(
     "not implemented",

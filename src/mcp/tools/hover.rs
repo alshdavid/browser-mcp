@@ -4,6 +4,8 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use crate::mcp::tool_context::ToolContext;
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct HoverRequest {
@@ -16,12 +18,14 @@ pub struct HoverRequest {
 }
 
 pub async fn hover(
+  tool_context: ToolContext,
   Parameters(HoverRequest {
     page_id,
     uid,
     include_snapshot,
-  }): Parameters<HoverRequest>
+  }): Parameters<HoverRequest>,
 ) -> Result<CallToolResult, ErrorData> {
+  let _ = tool_context;
   let _ = (page_id, uid, include_snapshot);
   Ok(CallToolResult::success(vec![ContentBlock::text(
     "not implemented",

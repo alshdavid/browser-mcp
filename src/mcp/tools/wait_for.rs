@@ -4,6 +4,8 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use crate::mcp::tool_context::ToolContext;
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct WaitForRequest {
@@ -20,12 +22,14 @@ pub struct WaitForRequest {
 }
 
 pub async fn wait_for(
+  tool_context: ToolContext,
   Parameters(WaitForRequest {
     page_id,
     text,
     timeout,
-  }): Parameters<WaitForRequest>
+  }): Parameters<WaitForRequest>,
 ) -> Result<CallToolResult, ErrorData> {
+  let _ = tool_context;
   let _ = (page_id, text, timeout);
   Ok(CallToolResult::success(vec![ContentBlock::text(
     "not implemented",

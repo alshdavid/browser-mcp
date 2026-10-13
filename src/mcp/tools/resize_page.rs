@@ -4,6 +4,8 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use crate::mcp::tool_context::ToolContext;
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ResizePageRequest {
@@ -16,12 +18,14 @@ pub struct ResizePageRequest {
 }
 
 pub async fn resize_page(
+  tool_context: ToolContext,
   Parameters(ResizePageRequest {
     page_id,
     width,
     height,
-  }): Parameters<ResizePageRequest>
+  }): Parameters<ResizePageRequest>,
 ) -> Result<CallToolResult, ErrorData> {
+  let _ = tool_context;
   let _ = (page_id, width, height);
   Ok(CallToolResult::success(vec![ContentBlock::text(
     "not implemented",

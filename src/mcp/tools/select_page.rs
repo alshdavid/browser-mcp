@@ -4,6 +4,8 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use crate::mcp::tool_context::ToolContext;
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SelectPageRequest {
@@ -16,11 +18,13 @@ pub struct SelectPageRequest {
 }
 
 pub async fn select_page(
+  tool_context: ToolContext,
   Parameters(SelectPageRequest {
     page_id,
     bring_to_front,
-  }): Parameters<SelectPageRequest>
+  }): Parameters<SelectPageRequest>,
 ) -> Result<CallToolResult, ErrorData> {
+  let _ = tool_context;
   let _ = (page_id, bring_to_front);
   Ok(CallToolResult::success(vec![ContentBlock::text(
     "not implemented",

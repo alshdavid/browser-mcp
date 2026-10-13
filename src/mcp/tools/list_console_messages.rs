@@ -4,6 +4,8 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use crate::mcp::tool_context::ToolContext;
+
 #[derive(Debug, Clone, Copy, serde::Deserialize, schemars::JsonSchema)]
 pub enum ConsoleMessageType {
   #[serde(rename = "log")]
@@ -80,6 +82,7 @@ pub struct ListConsoleMessagesRequest {
 }
 
 pub async fn list_console_messages(
+  tool_context: ToolContext,
   Parameters(ListConsoleMessagesRequest {
     page_id,
     page_size,
@@ -88,8 +91,9 @@ pub async fn list_console_messages(
     include_preserved_messages,
     include_stack_traces,
     service_worker_id,
-  }): Parameters<ListConsoleMessagesRequest>
+  }): Parameters<ListConsoleMessagesRequest>,
 ) -> Result<CallToolResult, ErrorData> {
+  let _ = tool_context;
   let _ = (
     page_id,
     page_size,

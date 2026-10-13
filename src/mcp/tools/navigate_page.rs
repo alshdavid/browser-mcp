@@ -4,6 +4,7 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use crate::mcp::tool_context::ToolContext;
 use crate::mcp::tools::common::DialogAction;
 use crate::mcp::tools::common::NavigationType;
 
@@ -33,6 +34,7 @@ pub struct NavigatePageRequest {
 }
 
 pub async fn navigate_page(
+  tool_context: ToolContext,
   Parameters(NavigatePageRequest {
     page_id,
     r#type,
@@ -41,8 +43,9 @@ pub async fn navigate_page(
     handle_before_unload,
     init_script,
     timeout,
-  }): Parameters<NavigatePageRequest>
+  }): Parameters<NavigatePageRequest>,
 ) -> Result<CallToolResult, ErrorData> {
+  let _ = tool_context;
   let _ = (
     page_id,
     r#type,

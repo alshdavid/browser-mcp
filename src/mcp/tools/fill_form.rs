@@ -4,6 +4,8 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use crate::mcp::tool_context::ToolContext;
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct FillFormElement {
@@ -27,12 +29,14 @@ pub struct FillFormRequest {
 }
 
 pub async fn fill_form(
+  tool_context: ToolContext,
   Parameters(FillFormRequest {
     page_id,
     elements,
     include_snapshot,
-  }): Parameters<FillFormRequest>
+  }): Parameters<FillFormRequest>,
 ) -> Result<CallToolResult, ErrorData> {
+  let _ = tool_context;
   let _ = (page_id, include_snapshot);
   for element in elements {
     let _ = (element.uid, element.value);

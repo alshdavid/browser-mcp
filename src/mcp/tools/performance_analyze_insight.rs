@@ -4,6 +4,8 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use crate::mcp::tool_context::ToolContext;
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct PerformanceAnalyzeInsightRequest {
@@ -20,12 +22,14 @@ pub struct PerformanceAnalyzeInsightRequest {
 }
 
 pub async fn performance_analyze_insight(
+  tool_context: ToolContext,
   Parameters(PerformanceAnalyzeInsightRequest {
     page_id,
     insight_set_id,
     insight_name,
-  }): Parameters<PerformanceAnalyzeInsightRequest>
+  }): Parameters<PerformanceAnalyzeInsightRequest>,
 ) -> Result<CallToolResult, ErrorData> {
+  let _ = tool_context;
   let _ = (page_id, insight_set_id, insight_name);
   Ok(CallToolResult::success(vec![ContentBlock::text(
     "not implemented",

@@ -4,6 +4,8 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use crate::mcp::tool_context::ToolContext;
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct GetConsoleMessageRequest {
@@ -16,8 +18,10 @@ pub struct GetConsoleMessageRequest {
 }
 
 pub async fn get_console_message(
-  Parameters(GetConsoleMessageRequest { page_id, msgid }): Parameters<GetConsoleMessageRequest>
+  tool_context: ToolContext,
+  Parameters(GetConsoleMessageRequest { page_id, msgid }): Parameters<GetConsoleMessageRequest>,
 ) -> Result<CallToolResult, ErrorData> {
+  let _ = tool_context;
   let _ = (page_id, msgid);
   Ok(CallToolResult::success(vec![ContentBlock::text(
     "not implemented",

@@ -4,6 +4,7 @@ use rmcp::ServiceExt;
 
 use crate::browser::chrome_binary_default;
 use crate::mcp::server::BrowserServer;
+use crate::mcp::tool_context::ToolContext;
 
 #[derive(Debug, clap::Parser)]
 pub struct StdioCommand {
@@ -24,9 +25,12 @@ pub async fn main(args: StdioCommand) -> anyhow::Result<()> {
     ));
   }
 
-  dbg!(&chrome_binary_path);
+  let tool_context = ToolContext::default();
 
-  let server = BrowserServer::new().serve(rmcp::transport::stdio()).await?;
+  let server = BrowserServer::new(tool_context)
+    .serve(rmcp::transport::stdio())
+    .await?;
+  
   server.waiting().await?;
   Ok(())
 }

@@ -4,6 +4,8 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use crate::mcp::tool_context::ToolContext;
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct GetNetworkRequestRequest {
@@ -24,13 +26,15 @@ pub struct GetNetworkRequestRequest {
 }
 
 pub async fn get_network_request(
+  tool_context: ToolContext,
   Parameters(GetNetworkRequestRequest {
     page_id,
     reqid,
     request_file_path,
     response_file_path,
-  }): Parameters<GetNetworkRequestRequest>
+  }): Parameters<GetNetworkRequestRequest>,
 ) -> Result<CallToolResult, ErrorData> {
+  let _ = tool_context;
   let _ = (page_id, reqid, request_file_path, response_file_path);
   Ok(CallToolResult::success(vec![ContentBlock::text(
     "not implemented",

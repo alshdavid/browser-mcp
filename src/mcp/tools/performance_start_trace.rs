@@ -4,6 +4,8 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use crate::mcp::tool_context::ToolContext;
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct PerformanceStartTraceRequest {
@@ -34,13 +36,15 @@ fn auto_stop_default() -> Option<bool> {
 }
 
 pub async fn performance_start_trace(
+  tool_context: ToolContext,
   Parameters(PerformanceStartTraceRequest {
     page_id,
     reload,
     auto_stop,
     file_path,
-  }): Parameters<PerformanceStartTraceRequest>
+  }): Parameters<PerformanceStartTraceRequest>,
 ) -> Result<CallToolResult, ErrorData> {
+  let _ = tool_context;
   let _ = (page_id, reload, auto_stop, file_path);
   Ok(CallToolResult::success(vec![ContentBlock::text(
     "not implemented",

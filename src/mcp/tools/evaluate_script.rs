@@ -4,6 +4,8 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use crate::mcp::tool_context::ToolContext;
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct EvaluateScriptRequest {
@@ -30,6 +32,7 @@ pub struct EvaluateScriptRequest {
 }
 
 pub async fn evaluate_script(
+  tool_context: ToolContext,
   Parameters(EvaluateScriptRequest {
     page_id,
     function,
@@ -37,8 +40,9 @@ pub async fn evaluate_script(
     file_path,
     dialog_action,
     wait_for_stable_dom,
-  }): Parameters<EvaluateScriptRequest>
+  }): Parameters<EvaluateScriptRequest>,
 ) -> Result<CallToolResult, ErrorData> {
+  let _ = tool_context;
   let _ = (
     page_id,
     function,

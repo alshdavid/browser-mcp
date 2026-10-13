@@ -4,6 +4,7 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use crate::mcp::tool_context::ToolContext;
 use crate::mcp::tools::common::DialogAction;
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
@@ -18,12 +19,14 @@ pub struct HandleDialogRequest {
 }
 
 pub async fn handle_dialog(
+  tool_context: ToolContext,
   Parameters(HandleDialogRequest {
     page_id,
     action,
     prompt_text,
-  }): Parameters<HandleDialogRequest>
+  }): Parameters<HandleDialogRequest>,
 ) -> Result<CallToolResult, ErrorData> {
+  let _ = tool_context;
   let _ = (page_id, action, prompt_text);
   Ok(CallToolResult::success(vec![ContentBlock::text(
     "not implemented",
