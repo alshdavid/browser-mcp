@@ -10,7 +10,7 @@ struct Command {
 
 #[derive(Debug, clap::Subcommand)]
 enum Commands {
-  #[clap(name = "serve", visible_aliases = ["s"])]
+  #[clap(name = "stdio")]
   Stdio(cmd::stdio::StdioCommand),
 }
 
