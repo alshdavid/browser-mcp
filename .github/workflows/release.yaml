@@ -30,9 +30,9 @@ jobs:
           LAST_VERSION=$(curl -sSL https://api.github.com/repos/alshdavid/$PROJECT_NAME/releases/latest | jq -r ".tag_name" | cut -d "." -f 3)
           if [ "$LAST_VERSION" = "" ]; then
             # Commenting out to protect against overriding on error
-            # LAST_VERSION="0"
             echo "Version Missing"
-            exit 1
+            LAST_VERSION="0"
+            # exit 1
           fi
           
           declare -i var="$LAST_VERSION"
