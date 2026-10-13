@@ -1,3 +1,4 @@
+mod browser;
 mod cmd;
 mod mcp;
 
