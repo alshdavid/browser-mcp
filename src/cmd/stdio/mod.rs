@@ -6,6 +6,9 @@ use crate::browser::BrowserInstance;
 use crate::browser::chrome_binary_default;
 use crate::mcp::server::BrowserServer;
 use crate::mcp::tool_context::ToolContext;
+use crate::platform::self_upgrade;
+use crate::platform::self_upgrade::TARGET_REPO;
+use crate::platform::self_upgrade::UpgradeOptions;
 
 #[derive(Debug, clap::Parser)]
 pub struct StdioCommand {
@@ -30,6 +33,21 @@ pub async fn main(args: StdioCommand) -> anyhow::Result<()> {
 
   let browser = BrowserInstance::launch(&chrome_binary_path, args.headless).await?;
   let tool_context = ToolContext::new(browser);
+
+  tokio::spawn({
+    let version = env!("CARGO_PKG_VERSION");
+    async move {
+      let available = self_upgrade::check_for_update(&UpgradeOptions {
+        target_repo: TARGET_REPO,
+        current_version: version,
+      })
+      .await;
+
+      if let Ok(Some(latest)) = available {
+        eprintln!("Update available: {} -> {}  (run `browser-mcp update`)", version, latest);
+      }
+    }
+  });
 
   let server = BrowserServer::new(tool_context)
     .serve(rmcp::transport::stdio())

@@ -29,7 +29,7 @@ fn chrome_binary_candidates() -> Vec<PathBuf> {
     .join("chrome.exe");
   ["ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"]
     .iter()
-    .filter_map(|name| std::env::var_os(name))
+    .filter_map(std::env::var_os)
     .map(|base| PathBuf::from(base).join(&binary))
     .collect()
 }
