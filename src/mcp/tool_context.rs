@@ -13,6 +13,20 @@ use crate::browser::BrowserInstance;
 struct PageEntry {
   id: f64,
   page: Page,
+  snapshot: Option<PageSnapshot>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SnapshotNode {
+  pub role: String,
+  pub name: Option<String>,
+  pub backend_node_id: Option<i64>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct PageSnapshot {
+  pub nodes: HashMap<String, SnapshotNode>,
+  pub uids_by_backend_node: HashMap<i64, String>,
 }
 
 #[derive(Debug, Clone)]
@@ -21,6 +35,7 @@ pub struct ToolContext {
   isolated_contexts: Arc<Mutex<HashMap<String, BrowserContextId>>>,
   pages: Arc<Mutex<Vec<PageEntry>>>,
   next_page_id: Arc<Mutex<f64>>,
+  next_snapshot_id: Arc<Mutex<u64>>,
 }
 
 impl ToolContext {
@@ -30,6 +45,7 @@ impl ToolContext {
       isolated_contexts: Arc::new(Mutex::new(HashMap::new())),
       pages: Arc::new(Mutex::new(Vec::new())),
       next_page_id: Arc::new(Mutex::new(1.0)),
+      next_snapshot_id: Arc::new(Mutex::new(1)),
     }
   }
 
@@ -65,7 +81,11 @@ impl ToolContext {
     *next_page_id += 1.0;
     drop(next_page_id);
 
-    self.pages.lock().await.push(PageEntry { id, page });
+    self.pages.lock().await.push(PageEntry {
+      id,
+      page,
+      snapshot: None,
+    });
 
     id
   }
@@ -96,5 +116,54 @@ impl ToolContext {
       .lock()
       .await
       .retain(|entry| entry.page.target_id() != target_id);
+  }
+
+  pub async fn begin_snapshot(
+    &self,
+    page_id: f64,
+  ) -> (u64, HashMap<i64, String>) {
+    let mut next_snapshot_id = self.next_snapshot_id.lock().await;
+    let snapshot_id = *next_snapshot_id;
+    *next_snapshot_id += 1;
+    drop(next_snapshot_id);
+
+    let previous = self
+      .pages
+      .lock()
+      .await
+      .iter()
+      .find(|entry| entry.id == page_id)
+      .and_then(|entry| entry.snapshot.as_ref())
+      .map(|snapshot| snapshot.uids_by_backend_node.clone())
+      .unwrap_or_default();
+
+    (snapshot_id, previous)
+  }
+
+  pub async fn store_snapshot(
+    &self,
+    page_id: f64,
+    snapshot: PageSnapshot,
+  ) {
+    let mut pages = self.pages.lock().await;
+    if let Some(entry) = pages.iter_mut().find(|entry| entry.id == page_id) {
+      entry.snapshot = Some(snapshot);
+    }
+  }
+
+  pub async fn snapshot_node(
+    &self,
+    page_id: f64,
+    uid: &str,
+  ) -> Option<SnapshotNode> {
+    self
+      .pages
+      .lock()
+      .await
+      .iter()
+      .find(|entry| entry.id == page_id)
+      .and_then(|entry| entry.snapshot.as_ref())
+      .and_then(|snapshot| snapshot.nodes.get(uid))
+      .cloned()
   }
 }
