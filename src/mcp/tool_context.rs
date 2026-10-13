@@ -240,12 +240,39 @@ impl NetworkStorage {
 }
 
 #[derive(Debug, Clone)]
+pub struct RecordedTrace {
+  pub url: String,
+  pub raw: Vec<u8>,
+  pub events: Vec<serde_json::Value>,
+  pub event_count: usize,
+  pub duration_seconds: f64,
+  pub insights: Vec<TraceInsightSet>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct TraceInsightSet {
+  pub insight_set_id: String,
+  pub url: String,
+  pub insights: HashMap<String, TraceInsight>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct TraceInsight {
+  pub name: String,
+  pub title: String,
+  pub description: String,
+  pub metrics: Vec<(String, f64)>,
+}
+
+#[derive(Debug, Clone)]
 pub struct ToolContext {
   browser: Arc<Mutex<BrowserInstance>>,
   isolated_contexts: Arc<Mutex<HashMap<String, BrowserContextId>>>,
   pages: Arc<Mutex<Vec<PageEntry>>>,
   next_page_id: Arc<Mutex<f64>>,
   next_snapshot_id: Arc<Mutex<u64>>,
+  running_performance_trace: Arc<Mutex<bool>>,
+  recorded_traces: Arc<Mutex<Vec<RecordedTrace>>>,
 }
 
 impl ToolContext {
@@ -256,7 +283,38 @@ impl ToolContext {
       pages: Arc::new(Mutex::new(Vec::new())),
       next_page_id: Arc::new(Mutex::new(1.0)),
       next_snapshot_id: Arc::new(Mutex::new(1)),
+      running_performance_trace: Arc::new(Mutex::new(false)),
+      recorded_traces: Arc::new(Mutex::new(Vec::new())),
     }
+  }
+
+  pub async fn is_running_performance_trace(&self) -> bool {
+    *self.running_performance_trace.lock().await
+  }
+
+  pub async fn set_running_performance_trace(
+    &self,
+    running: bool,
+  ) {
+    *self.running_performance_trace.lock().await = running;
+  }
+
+  pub async fn store_trace_recording(
+    &self,
+    trace: RecordedTrace,
+  ) {
+    let mut traces = self.recorded_traces.lock().await;
+    traces.push(trace);
+    // Only the most recent recording is reachable, so retaining more would leak
+    // a full raw trace per run for the life of the session.
+    if traces.len() > 1 {
+      let excess = traces.len() - 1;
+      traces.drain(..excess);
+    }
+  }
+
+  pub async fn last_recorded_trace(&self) -> Option<RecordedTrace> {
+    self.recorded_traces.lock().await.last().cloned()
   }
 
   pub async fn with_browser<T>(

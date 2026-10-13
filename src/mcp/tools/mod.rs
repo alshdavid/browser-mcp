@@ -22,6 +22,7 @@ pub mod new_page;
 pub mod performance_analyze_insight;
 pub mod performance_start_trace;
 pub mod performance_stop_trace;
+pub mod performance_trace;
 pub mod press_key;
 pub mod resize_page;
 pub mod select_page;

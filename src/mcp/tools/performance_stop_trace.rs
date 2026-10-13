@@ -4,6 +4,7 @@ use rmcp::model::CallToolResult;
 use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
+use super::performance_start_trace;
 use crate::mcp::tool_context::ToolContext;
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
@@ -23,9 +24,21 @@ pub async fn performance_stop_trace(
     PerformanceStopTraceRequest,
   >,
 ) -> Result<CallToolResult, ErrorData> {
-  let _ = tool_context;
-  let _ = (page_id, file_path);
-  Ok(CallToolResult::success(vec![ContentBlock::text(
-    "not implemented",
-  )]))
+  if !tool_context.is_running_performance_trace().await {
+    return Ok(CallToolResult::success(vec![ContentBlock::text(
+      "No performance trace is currently running.",
+    )]));
+  }
+
+  let page = tool_context
+    .page(page_id)
+    .await
+    .ok_or_else(|| ErrorData::invalid_params(format!("No page found with id {page_id}"), None))?;
+
+  let lines =
+    performance_start_trace::stop_and_record(&tool_context, &page, file_path.as_deref()).await?;
+
+  Ok(CallToolResult::success(
+    lines.into_iter().map(ContentBlock::text).collect(),
+  ))
 }

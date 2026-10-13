@@ -13,8 +13,10 @@ uninlined_format_args = "allow"
 
 [dependencies]
 anyhow = "1.0.104"
+base64 = "0.22"
 chromiumoxide = "0.9.1"
 clap = { version = "4.6.7", features = ["derive", "env"] }
+flate2 = "1.1"
 futures-util = "0.3"
 rmcp = { version = "3.5.1", features = ["server", "schemars", "transport-io"] }
 serde = { version = "1.0.228", features = ["derive"] }

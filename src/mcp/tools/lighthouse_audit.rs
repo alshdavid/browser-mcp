@@ -46,18 +46,36 @@ fn device_default() -> Option<LighthouseDevice> {
   Some(LighthouseDevice::Desktop)
 }
 
+const UNAVAILABLE_MESSAGE: &str = "\
+The lighthouse_audit tool is not available in this build.
+
+Lighthouse is not a Chrome DevTools Protocol feature: upstream implements this tool by running the Lighthouse engine, which ships as a 3.5 MB JavaScript bundle executed through a Node.js runtime. This server has no JavaScript runtime and no Rust port of the Lighthouse engine, so audit scores for accessibility, SEO, best practices, or agentic browsing cannot be produced here. Reporting fabricated or partial scores instead would be misleading, so this tool returns no results at all.
+
+What to do instead:
+- For performance work, use performance_start_trace: it is fully implemented, records a real trace over CDP, and reports Core Web Vitals plus Insights that performance_analyze_insight can then break down.
+- For accessibility and SEO structure, read the page directly with take_snapshot (or evaluate_script) and inspect the document yourself; the required signals, such as landmarks, headings, alt text, labels, link text, and meta tags, are all readable from the DOM.
+- To check best practices, use the network and console tools (list_network_requests, get_network_request, list_console_messages) to surface mixed content, failed requests, deprecated APIs, and browser warnings.
+- If you need genuine Lighthouse results, run Lighthouse outside this server against the same URL and feed the report back to the agent.
+
+Repeated calls will return this same message.";
+
 pub async fn lighthouse_audit(
   tool_context: ToolContext,
   Parameters(LighthouseAuditRequest {
     page_id,
-    mode,
-    device,
-    output_dir_path,
+    mode: _mode,
+    device: _device,
+    output_dir_path: _output_dir_path,
   }): Parameters<LighthouseAuditRequest>,
 ) -> Result<CallToolResult, ErrorData> {
-  let _ = tool_context;
-  let _ = (page_id, mode, device, output_dir_path);
+  if tool_context.page(page_id).await.is_none() {
+    return Err(ErrorData::invalid_params(
+      format!("No page found with id {page_id}"),
+      None,
+    ));
+  }
+
   Ok(CallToolResult::success(vec![ContentBlock::text(
-    "not implemented",
+    UNAVAILABLE_MESSAGE,
   )]))
 }
