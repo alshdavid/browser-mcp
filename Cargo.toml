@@ -1,0 +1,8 @@
+[package]
+name = "browser-mcp"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rmcp = { version = "3.5.1", features = ["server", "transport-io"] }
+tokio = { version = "1.53.2", features = ["full"] }
