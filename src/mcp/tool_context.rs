@@ -16,16 +16,8 @@ struct PageEntry {
   snapshot: Option<PageSnapshot>,
 }
 
-#[derive(Debug, Clone)]
-pub struct SnapshotNode {
-  pub role: String,
-  pub name: Option<String>,
-  pub backend_node_id: Option<i64>,
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct PageSnapshot {
-  pub nodes: HashMap<String, SnapshotNode>,
   pub uids_by_backend_node: HashMap<i64, String>,
 }
 
@@ -149,21 +141,5 @@ impl ToolContext {
     if let Some(entry) = pages.iter_mut().find(|entry| entry.id == page_id) {
       entry.snapshot = Some(snapshot);
     }
-  }
-
-  pub async fn snapshot_node(
-    &self,
-    page_id: f64,
-    uid: &str,
-  ) -> Option<SnapshotNode> {
-    self
-      .pages
-      .lock()
-      .await
-      .iter()
-      .find(|entry| entry.id == page_id)
-      .and_then(|entry| entry.snapshot.as_ref())
-      .and_then(|snapshot| snapshot.nodes.get(uid))
-      .cloned()
   }
 }

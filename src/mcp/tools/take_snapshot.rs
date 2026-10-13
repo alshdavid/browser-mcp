@@ -13,7 +13,6 @@ use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
 use crate::mcp::tool_context::PageSnapshot;
-use crate::mcp::tool_context::SnapshotNode;
 use crate::mcp::tool_context::ToolContext;
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
@@ -93,7 +92,9 @@ pub async fn take_snapshot(
   Ok(CallToolResult::success(vec![ContentBlock::text(text)]))
 }
 
-async fn accessibility_tree(page: &Page) -> Result<Vec<AxNode>, chromiumoxide::error::CdpError> {
+pub(crate) async fn accessibility_tree(
+  page: &Page
+) -> Result<Vec<AxNode>, chromiumoxide::error::CdpError> {
   let mut nodes = page
     .execute(GetFullAxTreeParams::default())
     .await?
@@ -120,7 +121,7 @@ async fn accessibility_tree(page: &Page) -> Result<Vec<AxNode>, chromiumoxide::e
   Ok(nodes)
 }
 
-fn assign_uids(
+pub(crate) fn assign_uids(
   nodes: &[AxNode],
   snapshot_id: u64,
   verbose: bool,
@@ -180,7 +181,7 @@ fn assign_uids(
 
       let index = flat.len();
       flat.push(FlatNode {
-        uid: uid.clone(),
+        uid,
         role: role_of(node),
         name: name_of(node),
         value: value_of(node),
@@ -189,15 +190,6 @@ fn assign_uids(
         ignored: node.ignored,
         children: Vec::new(),
       });
-
-      snapshot.nodes.insert(
-        uid,
-        SnapshotNode {
-          role: flat[index].role.clone(),
-          name: flat[index].name.clone(),
-          backend_node_id,
-        },
-      );
 
       match parent {
         Some(parent) => flat[parent].children.push(index),
@@ -327,7 +319,7 @@ fn text_of(value: Option<&AxValue>) -> Option<String> {
   }
 }
 
-fn format_tree(
+pub(crate) fn format_tree(
   root: Option<&Vec<FlatNode>>,
   verbose: bool,
 ) -> String {
