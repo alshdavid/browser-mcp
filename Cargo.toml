@@ -3,6 +3,16 @@ name = "browser-mcp"
 version = "0.1.0"
 edition = "2024"
 
+[lints.rust]
+elided_lifetimes_in_paths = "allow"
+rust_2018_idioms = { priority = -1, level = "deny" }
+
+[lints.clippy]
+module_inception = "allow"
+uninlined_format_args = "allow"
+
 [dependencies]
+anyhow = "1.0.104"
+clap = { version = "4.6.7", features = ["derive", "env"] }
 rmcp = { version = "3.5.1", features = ["server", "transport-io"] }
 tokio = { version = "1.53.2", features = ["full"] }
