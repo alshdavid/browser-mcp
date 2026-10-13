@@ -26,3 +26,25 @@ echo "\nexport \PATH=\$PATH:\$HOME/.local/bin\n" >> $HOME/.bashrc
 ## Updating
 
 Once installed, run `browser-mcp update` and it will self-update.
+
+## Usage
+
+```bash
+# Launch a new Chrome instance (default)
+browser-mcp stdio
+
+# Launch headless
+browser-mcp stdio --headless
+
+# Use a specific Chrome binary
+browser-mcp stdio --chrome-binary-path /usr/bin/chromium
+
+# Attach to your running Chrome instead of launching one
+browser-mcp stdio --auto-connect
+```
+
+`--auto-connect` (alias `--autoConnect`) attaches to the Chrome you already have
+open, signing in with your existing profile. Start Chrome at least once and
+enable the remote debugging server at `chrome://inspect/#remote-debugging`; the
+port Chrome writes to its profile's `DevToolsActivePort` file is what the flag
+connects to. Chrome is left running when the server exits.

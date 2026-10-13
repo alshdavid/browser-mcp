@@ -42,6 +42,17 @@ impl BrowserInstance {
     })
   }
 
+  pub async fn connect(web_socket_url: &str) -> anyhow::Result<Self> {
+    let (browser, handler) = Browser::connect(web_socket_url)
+      .await
+      .context("failed to connect to chrome")?;
+
+    Ok(Self {
+      browser,
+      _handler: tokio::spawn(drive(handler)),
+    })
+  }
+
   pub fn browser(&self) -> &Browser {
     &self.browser
   }
