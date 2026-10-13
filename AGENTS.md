@@ -39,5 +39,5 @@ Do not run the validation loop yourself. When you make a change, delegate valida
 | `cargo build --quiet` | Validation gate for every change. |
 | `cargo xfmt` | Format after `cargo check` passes. |
 | `cargo clippy --quiet --all-targets --workspace -- -D warnings` | Checks lint rules after `cargo check` passes |
-| `cargo clippy --fix --all-targets --workspace --allow-dirty` | Automatically fix clippy warnings if check fails. |
+| `cargo clippy --quiet --fix --all-targets --workspace --allow-dirty` | Automatically fix clippy warnings if check fails. |
 | `cargo run` | Launch the application locally. |
