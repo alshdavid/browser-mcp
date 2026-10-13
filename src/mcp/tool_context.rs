@@ -19,6 +19,13 @@ struct PageEntry {
 #[derive(Debug, Clone, Default)]
 pub struct PageSnapshot {
   pub uids_by_backend_node: HashMap<i64, String>,
+  pub nodes_by_uid: HashMap<String, SnapshotNode>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SnapshotNode {
+  pub backend_node_id: Option<i64>,
+  pub role: String,
 }
 
 #[derive(Debug, Clone)]
@@ -130,6 +137,55 @@ impl ToolContext {
       .unwrap_or_default();
 
     (snapshot_id, previous)
+  }
+
+  pub async fn backend_node_for_uid(
+    &self,
+    page_id: f64,
+    uid: &str,
+  ) -> Option<i64> {
+    self
+      .pages
+      .lock()
+      .await
+      .iter()
+      .find(|entry| entry.id == page_id)
+      .and_then(|entry| entry.snapshot.as_ref())
+      .and_then(|snapshot| {
+        snapshot
+          .uids_by_backend_node
+          .iter()
+          .find(|(_, value)| value.as_str() == uid)
+          .map(|(backend_node_id, _)| *backend_node_id)
+      })
+  }
+
+  pub async fn node_for_uid(
+    &self,
+    page_id: f64,
+    uid: &str,
+  ) -> Option<SnapshotNode> {
+    self
+      .pages
+      .lock()
+      .await
+      .iter()
+      .find(|entry| entry.id == page_id)
+      .and_then(|entry| entry.snapshot.as_ref())
+      .and_then(|snapshot| snapshot.nodes_by_uid.get(uid).cloned())
+  }
+
+  pub async fn has_snapshot(
+    &self,
+    page_id: f64,
+  ) -> bool {
+    self
+      .pages
+      .lock()
+      .await
+      .iter()
+      .find(|entry| entry.id == page_id)
+      .is_some_and(|entry| entry.snapshot.is_some())
   }
 
   pub async fn store_snapshot(

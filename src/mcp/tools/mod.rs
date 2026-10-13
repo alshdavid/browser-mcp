@@ -12,6 +12,7 @@ pub mod get_css_styles;
 pub mod get_network_request;
 pub mod handle_dialog;
 pub mod hover;
+pub mod keys;
 pub mod lighthouse_audit;
 pub mod list_console_messages;
 pub mod list_network_requests;

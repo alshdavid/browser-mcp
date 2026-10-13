@@ -13,6 +13,7 @@ use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
 use crate::mcp::tool_context::PageSnapshot;
+use crate::mcp::tool_context::SnapshotNode;
 use crate::mcp::tool_context::ToolContext;
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
@@ -167,6 +168,14 @@ pub(crate) fn assign_uids(
           .uids_by_backend_node
           .insert(backend_node_id, uid.clone());
       }
+
+      snapshot.nodes_by_uid.insert(
+        uid.clone(),
+        SnapshotNode {
+          backend_node_id,
+          role: role_of(node),
+        },
+      );
 
       let children = node
         .child_ids
