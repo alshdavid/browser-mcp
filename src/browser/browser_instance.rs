@@ -9,7 +9,7 @@ use tokio::task::JoinHandle;
 #[derive(Debug)]
 pub struct BrowserInstance {
   browser: Browser,
-  handler: JoinHandle<()>,
+  _handler: JoinHandle<()>,
 }
 
 impl BrowserInstance {
@@ -38,7 +38,7 @@ impl BrowserInstance {
 
     Ok(Self {
       browser,
-      handler: tokio::spawn(drive(handler)),
+      _handler: tokio::spawn(drive(handler)),
     })
   }
 
