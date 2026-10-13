@@ -31,8 +31,8 @@ jobs:
           if [ "$LAST_VERSION" = "" ]; then
             # Commenting out to protect against overriding on error
             echo "Version Missing"
-            LAST_VERSION="0"
-            # exit 1
+            # LAST_VERSION="0"
+            exit 1
           fi
           
           declare -i var="$LAST_VERSION"
