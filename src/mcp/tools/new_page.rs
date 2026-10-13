@@ -76,11 +76,11 @@ pub async fn new_page(
 
   settle(&page, &url, background, timeout).await;
 
-  let target_id = page.target_id().as_ref().to_string();
+  let id = tool_context.register_page(page.clone()).await;
   let url = page.url().await.ok().flatten().unwrap_or_default();
 
   Ok(CallToolResult::success(vec![ContentBlock::text(
-    serde_json::json!({ "id": target_id, "url": url }).to_string(),
+    serde_json::json!({ "id": id, "url": url }).to_string(),
   )]))
 }
 
