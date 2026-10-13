@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use rmcp::ServiceExt;
 
+use crate::browser::BrowserInstance;
 use crate::browser::chrome_binary_default;
 use crate::mcp::server::BrowserServer;
 use crate::mcp::tool_context::ToolContext;
@@ -10,6 +11,8 @@ use crate::mcp::tool_context::ToolContext;
 pub struct StdioCommand {
   #[arg(long = "chrome-binary-path", env = "CHROME_BINARY_PATH")]
   chrome_binary_path: Option<PathBuf>,
+  #[arg(long = "headless")]
+  headless: bool,
 }
 
 pub async fn main(args: StdioCommand) -> anyhow::Result<()> {
@@ -25,12 +28,13 @@ pub async fn main(args: StdioCommand) -> anyhow::Result<()> {
     ));
   }
 
-  let tool_context = ToolContext::default();
+  let browser = BrowserInstance::launch(&chrome_binary_path, args.headless).await?;
+  let tool_context = ToolContext::new(browser);
 
   let server = BrowserServer::new(tool_context)
     .serve(rmcp::transport::stdio())
     .await?;
-  
+
   server.waiting().await?;
   Ok(())
 }

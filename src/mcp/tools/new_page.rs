@@ -1,3 +1,8 @@
+use std::time::Duration;
+
+use chromiumoxide::Page;
+use chromiumoxide::cdp::browser_protocol::target::CreateBrowserContextParams;
+use chromiumoxide::cdp::browser_protocol::target::CreateTargetParams;
 use rmcp::ErrorData;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::CallToolResult;
@@ -34,9 +39,75 @@ pub async fn new_page(
     timeout,
   }): Parameters<NewPageRequest>,
 ) -> Result<CallToolResult, ErrorData> {
-  let _ = tool_context;
-  let _ = (url, background, isolated_context, timeout);
+  let timeout = timeout
+    .filter(|millis| *millis > 0)
+    .map(|millis| Duration::from_millis(millis as u64));
+
+  let browser_context_id = match isolated_context {
+    Some(name) => Some(match tool_context.isolated_context(&name).await {
+      Some(id) => id,
+      None => {
+        let id = tool_context
+          .with_browser(async |browser| {
+            browser
+              .create_browser_context(CreateBrowserContextParams::default())
+              .await
+          })
+          .await
+          .map_err(internal)?;
+        tool_context.set_isolated_context(name, id.clone()).await;
+        id
+      }
+    }),
+    None => None,
+  };
+
+  let page = tool_context
+    .with_browser(async |browser| {
+      let params = CreateTargetParams {
+        browser_context_id,
+        background,
+        ..CreateTargetParams::new(&url)
+      };
+      browser.new_page(params).await
+    })
+    .await
+    .map_err(internal)?;
+
+  settle(&page, &url, background, timeout).await;
+
+  let target_id = page.target_id().as_ref().to_string();
+  let url = page.url().await.ok().flatten().unwrap_or_default();
+
   Ok(CallToolResult::success(vec![ContentBlock::text(
-    "not implemented",
+    serde_json::json!({ "id": target_id, "url": url }).to_string(),
   )]))
+}
+
+async fn settle(
+  page: &Page,
+  url: &str,
+  background: Option<bool>,
+  timeout: Option<Duration>,
+) {
+  if url.is_empty() {
+    return;
+  }
+
+  let navigation = page.wait_for_navigation();
+  let navigation = match timeout {
+    Some(timeout) => match tokio::time::timeout(timeout, navigation).await {
+      Ok(result) => result,
+      Err(_) => return,
+    },
+    None => navigation.await,
+  };
+
+  if navigation.is_err() && !background.unwrap_or(false) {
+    let _ = page.goto("about:blank").await;
+  }
+}
+
+fn internal(error: chromiumoxide::error::CdpError) -> ErrorData {
+  ErrorData::internal_error(error.to_string(), None)
 }

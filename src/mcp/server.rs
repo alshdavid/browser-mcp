@@ -94,12 +94,6 @@ impl BrowserServer {
   }
 }
 
-impl Default for BrowserServer {
-  fn default() -> Self {
-    Self::new(ToolContext::default())
-  }
-}
-
 #[tool_router]
 impl BrowserServer {
   #[tool(description = "Clicks on the provided element")]
