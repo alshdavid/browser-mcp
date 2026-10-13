@@ -5,6 +5,12 @@ use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
 use crate::mcp::tool_context::ToolContext;
+use crate::mcp::tools::fill::DEFAULT_TIMEOUT;
+use crate::mcp::tools::fill::TIMEOUT_PER_CHAR;
+use crate::mcp::tools::fill::fill_element;
+use crate::mcp::tools::fill::has_option_children;
+use crate::mcp::tools::fill::snapshot;
+use crate::mcp::tools::fill::unknown_uid;
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
@@ -36,12 +42,51 @@ pub async fn fill_form(
     include_snapshot,
   }): Parameters<FillFormRequest>,
 ) -> Result<CallToolResult, ErrorData> {
-  let _ = tool_context;
-  let _ = (page_id, include_snapshot);
-  for element in elements {
-    let _ = (element.uid, element.value);
+  let page = tool_context
+    .page(page_id)
+    .await
+    .ok_or_else(|| ErrorData::invalid_params(format!("No page found with id {page_id}"), None))?;
+
+  if !tool_context.has_snapshot(page_id).await {
+    return Err(ErrorData::invalid_params(
+      format!("No snapshot found for page {page_id}. Use take_snapshot to capture one."),
+      None,
+    ));
   }
-  Ok(CallToolResult::success(vec![ContentBlock::text(
-    "not implemented",
-  )]))
+
+  for FillFormElement { uid, value } in &elements {
+    let node = tool_context
+      .node_for_uid(page_id, uid)
+      .await
+      .ok_or_else(|| unknown_uid(uid, page_id))?;
+
+    let backend_node_id = node
+      .backend_node_id
+      .filter(|backend_node_id| *backend_node_id != 0)
+      .ok_or_else(|| unknown_uid(uid, page_id))?;
+
+    let is_combobox_select =
+      node.role == "combobox" && has_option_children(&page, backend_node_id).await?;
+
+    let length = u32::try_from(value.chars().count()).unwrap_or(u32::MAX);
+    let deadline = tokio::time::Instant::now() + DEFAULT_TIMEOUT + TIMEOUT_PER_CHAR * length;
+
+    fill_element(
+      &page,
+      backend_node_id,
+      value,
+      deadline,
+      uid,
+      is_combobox_select,
+    )
+    .await?;
+  }
+
+  let mut text = "Successfully filled out the form".to_owned();
+  if include_snapshot.unwrap_or(false) {
+    text.push_str("\n## Latest page snapshot\n");
+    text.push_str(&snapshot(&tool_context, page_id, &page).await?);
+  }
+
+  Ok(CallToolResult::success(vec![ContentBlock::text(text)]))
 }

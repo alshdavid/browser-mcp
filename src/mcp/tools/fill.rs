@@ -19,9 +19,9 @@ use crate::mcp::tools::take_snapshot::accessibility_tree;
 use crate::mcp::tools::take_snapshot::assign_uids;
 use crate::mcp::tools::take_snapshot::format_tree;
 
-const DEFAULT_TIMEOUT: Duration = Duration::from_millis(5000);
+pub(crate) const DEFAULT_TIMEOUT: Duration = Duration::from_millis(5000);
 const POLL_INTERVAL: Duration = Duration::from_millis(100);
-const TIMEOUT_PER_CHAR: Duration = Duration::from_millis(10);
+pub(crate) const TIMEOUT_PER_CHAR: Duration = Duration::from_millis(10);
 
 const FILL_FUNCTION: &str = r#"function (value, asSelect) {
   const element = this;
@@ -42,19 +42,23 @@ const FILL_FUNCTION: &str = r#"function (value, asSelect) {
       throw new Error('Could not find option with text "' + value + '"');
     }
   } else {
-    if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
-      throw new Error('Element is not an <input>, <textarea> or <select> element');
-    }
     const type = (element.getAttribute('type') || '').toLowerCase();
     const role = element.getAttribute('role');
-    const toggle = (type === 'checkbox' || type === 'radio')
+    const toggle = (tag === 'INPUT' && (type === 'checkbox' || type === 'radio'))
       || role === 'checkbox' || role === 'radio' || role === 'switch';
     if (toggle) {
       if (value !== 'true' && value !== 'false') {
         throw new Error('Checkboxes, radio boxes and toggles require "true" or "false" value, but ' + value + ' was used');
       }
-      element.checked = value === 'true';
+      if (element.tagName === 'INPUT') {
+        element.checked = value === 'true';
+      } else {
+        element.setAttribute('aria-checked', value);
+      }
     } else {
+      if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
+        throw new Error('Element is not an <input>, <textarea> or <select> element');
+      }
       element.focus();
       if (element.select) {
         element.select();
@@ -138,7 +142,7 @@ pub async fn fill(
   Ok(CallToolResult::success(vec![ContentBlock::text(text)]))
 }
 
-fn unknown_uid(
+pub(crate) fn unknown_uid(
   uid: &str,
   page_id: f64,
 ) -> ErrorData {
@@ -148,7 +152,7 @@ fn unknown_uid(
   )
 }
 
-async fn has_option_children(
+pub(crate) async fn has_option_children(
   page: &Page,
   backend_node_id: i64,
 ) -> Result<bool, ErrorData> {
@@ -175,7 +179,7 @@ async fn has_option_children(
   Ok(false)
 }
 
-async fn fill_element(
+pub(crate) async fn fill_element(
   page: &Page,
   backend_node_id: i64,
   value: &str,
@@ -323,7 +327,7 @@ fn exception_reason(exception: &ExceptionDetails) -> String {
     .unwrap_or_else(|| exception.text.clone())
 }
 
-async fn snapshot(
+pub(crate) async fn snapshot(
   tool_context: &ToolContext,
   page_id: f64,
   page: &Page,

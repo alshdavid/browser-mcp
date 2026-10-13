@@ -4,7 +4,9 @@ use std::sync::Arc;
 use chromiumoxide::Browser;
 use chromiumoxide::Page;
 use chromiumoxide::cdp::browser_protocol::browser::BrowserContextId;
+use chromiumoxide::cdp::browser_protocol::page::EventJavascriptDialogOpening;
 use chromiumoxide::cdp::browser_protocol::target::TargetId;
+use futures_util::StreamExt as _;
 use tokio::sync::Mutex;
 
 use crate::browser::BrowserInstance;
@@ -14,6 +16,7 @@ struct PageEntry {
   id: f64,
   page: Page,
   snapshot: Option<PageSnapshot>,
+  dialog_open: bool,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -82,9 +85,12 @@ impl ToolContext {
 
     self.pages.lock().await.push(PageEntry {
       id,
-      page,
+      page: page.clone(),
       snapshot: None,
+      dialog_open: false,
     });
+
+    watch_dialogs(page, id, self.pages.clone());
 
     id
   }
@@ -115,6 +121,29 @@ impl ToolContext {
       .lock()
       .await
       .retain(|entry| entry.page.target_id() != target_id);
+  }
+
+  pub async fn dialog_open(
+    &self,
+    page_id: f64,
+  ) -> bool {
+    self
+      .pages
+      .lock()
+      .await
+      .iter()
+      .find(|entry| entry.id == page_id)
+      .is_some_and(|entry| entry.dialog_open)
+  }
+
+  pub async fn clear_dialog(
+    &self,
+    page_id: f64,
+  ) {
+    let mut pages = self.pages.lock().await;
+    if let Some(entry) = pages.iter_mut().find(|entry| entry.id == page_id) {
+      entry.dialog_open = false;
+    }
   }
 
   pub async fn begin_snapshot(
@@ -198,4 +227,26 @@ impl ToolContext {
       entry.snapshot = Some(snapshot);
     }
   }
+}
+
+fn watch_dialogs(
+  page: Page,
+  page_id: f64,
+  pages: Arc<Mutex<Vec<PageEntry>>>,
+) {
+  // The dialog-opening event fires during whatever tool call triggers it, so the
+  // subscription must be live from page registration rather than from
+  // handle_dialog, which would already be too late to observe it.
+  tokio::spawn(async move {
+    let Ok(mut events) = page.event_listener::<EventJavascriptDialogOpening>().await else {
+      return;
+    };
+
+    while events.next().await.is_some() {
+      let mut pages = pages.lock().await;
+      if let Some(entry) = pages.iter_mut().find(|entry| entry.id == page_id) {
+        entry.dialog_open = true;
+      }
+    }
+  });
 }

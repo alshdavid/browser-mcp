@@ -196,7 +196,7 @@ async fn attempt(
   Ok(())
 }
 
-async fn clickable_point(
+pub(crate) async fn clickable_point(
   page: &Page,
   backend_node_id: BackendNodeId,
 ) -> Result<Point, String> {

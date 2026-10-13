@@ -1,3 +1,4 @@
+use chromiumoxide::cdp::browser_protocol::page::HandleJavaScriptDialogParams;
 use rmcp::ErrorData;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::CallToolResult;
@@ -26,9 +27,27 @@ pub async fn handle_dialog(
     prompt_text,
   }): Parameters<HandleDialogRequest>,
 ) -> Result<CallToolResult, ErrorData> {
-  let _ = tool_context;
-  let _ = (page_id, action, prompt_text);
-  Ok(CallToolResult::success(vec![ContentBlock::text(
-    "not implemented",
-  )]))
+  let page = tool_context
+    .page(page_id)
+    .await
+    .ok_or_else(|| ErrorData::invalid_params(format!("No page found with id {page_id}"), None))?;
+
+  if !tool_context.dialog_open(page_id).await {
+    return Err(ErrorData::invalid_params("No open dialog found", None));
+  }
+
+  let (accept, message) = match action {
+    DialogAction::Accept => (true, "Successfully accepted the dialog"),
+    DialogAction::Dismiss => (false, "Successfully dismissed the dialog"),
+  };
+
+  let mut params = HandleJavaScriptDialogParams::new(accept);
+  params.prompt_text = prompt_text;
+  // The dialog may already have been dismissed outside of MCP, so a failed CDP
+  // call still means it is no longer blocking; erroring would be a false alarm.
+  let _ = page.execute(params).await;
+
+  tool_context.clear_dialog(page_id).await;
+
+  Ok(CallToolResult::success(vec![ContentBlock::text(message)]))
 }
