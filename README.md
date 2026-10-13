@@ -8,7 +8,7 @@ I have plans to implement the W3C web driver spec to enable driving other browse
 
 ## Zero Dependencies
 
-This is distributed as a single binary with no runtime or external dependencies. Just download it, add it to your harnesses, and never think about it again.
+This is distributed as a single binary with no runtime or external dependencies. Just download it, add it to your `$PATH`, register it in your harnesses, and never think about it again.
 
 ## Installation
 
@@ -25,4 +25,4 @@ echo "\nexport \PATH=\$PATH:\$HOME/.local/bin\n" >> $HOME/.bashrc
 
 ## Updating
 
-Once installed, just run `browser-mcp update` and it will self-update.
+Once installed, run `browser-mcp update` and it will self-update.
