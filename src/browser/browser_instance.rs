@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::sync::Arc;
 
 use anyhow::Context as _;
 use chromiumoxide::Browser;
@@ -6,10 +7,13 @@ use chromiumoxide::BrowserConfig;
 use chromiumoxide::Handler;
 use tokio::task::JoinHandle;
 
-#[derive(Debug)]
+// `Browser` is not `Clone`, so the connection is shared behind an `Arc` and a
+// clone keeps the one handler task alive rather than trying to drive the
+// websocket twice.
+#[derive(Debug, Clone)]
 pub struct BrowserInstance {
-  browser: Browser,
-  _handler: JoinHandle<()>,
+  browser: Arc<Browser>,
+  _handler: Arc<JoinHandle<()>>,
 }
 
 impl BrowserInstance {
@@ -37,8 +41,8 @@ impl BrowserInstance {
       .context("failed to launch chrome")?;
 
     Ok(Self {
-      browser,
-      _handler: tokio::spawn(drive(handler)),
+      browser: Arc::new(browser),
+      _handler: Arc::new(tokio::spawn(drive(handler))),
     })
   }
 
@@ -48,8 +52,8 @@ impl BrowserInstance {
       .context("failed to connect to chrome")?;
 
     Ok(Self {
-      browser,
-      _handler: tokio::spawn(drive(handler)),
+      browser: Arc::new(browser),
+      _handler: Arc::new(tokio::spawn(drive(handler))),
     })
   }
 

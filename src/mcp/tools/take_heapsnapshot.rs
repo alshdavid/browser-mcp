@@ -30,10 +30,7 @@ pub async fn take_heapsnapshot(
   tool_context: ToolContext,
   Parameters(TakeHeapsnapshotRequest { page_id, file_path }): Parameters<TakeHeapsnapshotRequest>,
 ) -> Result<CallToolResult, ErrorData> {
-  let page = tool_context
-    .page(page_id)
-    .await
-    .ok_or_else(|| ErrorData::invalid_params(format!("No page found with id {page_id}"), None))?;
+  let page = tool_context.require_page(page_id).await?;
 
   let path = with_heapsnapshot_extension(&file_path);
   let snapshot = capture(&page).await?;

@@ -39,10 +39,7 @@ pub async fn wait_for(
     timeout,
   }): Parameters<WaitForRequest>,
 ) -> Result<CallToolResult, ErrorData> {
-  let page = tool_context
-    .page(page_id)
-    .await
-    .ok_or_else(|| ErrorData::invalid_params(format!("No page found with id {page_id}"), None))?;
+  let page = tool_context.require_page(page_id).await?;
 
   let text: Vec<String> = text.into_iter().filter(|value| !value.is_empty()).collect();
   if text.is_empty() {

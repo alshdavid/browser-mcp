@@ -27,10 +27,7 @@ pub async fn handle_dialog(
     prompt_text,
   }): Parameters<HandleDialogRequest>,
 ) -> Result<CallToolResult, ErrorData> {
-  let page = tool_context
-    .page(page_id)
-    .await
-    .ok_or_else(|| ErrorData::invalid_params(format!("No page found with id {page_id}"), None))?;
+  let page = tool_context.require_page(page_id).await?;
 
   if !tool_context.dialog_open(page_id).await {
     return Err(ErrorData::invalid_params("No open dialog found", None));

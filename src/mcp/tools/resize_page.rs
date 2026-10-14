@@ -32,10 +32,7 @@ pub async fn resize_page(
     height,
   }): Parameters<ResizePageRequest>,
 ) -> Result<CallToolResult, ErrorData> {
-  let page = tool_context
-    .page(page_id)
-    .await
-    .ok_or_else(|| ErrorData::invalid_params(format!("No page found with id {page_id}"), None))?;
+  let page = tool_context.require_page(page_id).await?;
 
   let width = width.round().max(0.0) as i64;
   let height = height.round().max(0.0) as i64;

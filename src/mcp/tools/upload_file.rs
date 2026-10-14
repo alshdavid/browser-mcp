@@ -49,10 +49,7 @@ pub async fn upload_file(
     include_snapshot,
   }): Parameters<UploadFileRequest>,
 ) -> Result<CallToolResult, ErrorData> {
-  let page = tool_context
-    .page(page_id)
-    .await
-    .ok_or_else(|| ErrorData::invalid_params(format!("No page found with id {page_id}"), None))?;
+  let page = tool_context.require_page(page_id).await?;
 
   if !tool_context.has_snapshot(page_id).await {
     return Err(ErrorData::invalid_params(

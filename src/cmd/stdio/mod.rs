@@ -2,10 +2,8 @@ use std::path::PathBuf;
 
 use rmcp::ServiceExt;
 
-use crate::browser::BrowserInstance;
-use crate::browser::chrome_binary_default;
-use crate::browser::chrome_user_data_dir;
-use crate::browser::devtools_active_port_ws_url;
+use crate::browser::BrowserManager;
+use crate::browser::BrowserOptions;
 use crate::mcp::server::BrowserServer;
 use crate::mcp::tool_context::ToolContext;
 use crate::platform::self_upgrade;
@@ -23,13 +21,15 @@ pub struct StdioCommand {
 }
 
 pub async fn main(args: StdioCommand) -> anyhow::Result<()> {
-  let browser = if args.auto_connect {
-    connect_to_running_chrome().await?
-  } else {
-    launch_chrome(&args).await?
-  };
+  let tool_context = ToolContext::new(BrowserManager::new(BrowserOptions {
+    chrome_binary_path: args.chrome_binary_path,
+    headless: args.headless,
+    auto_connect: args.auto_connect,
+  }));
 
-  let tool_context = ToolContext::new(browser);
+  if let Err(error) = tool_context.browser().await {
+    eprintln!("Browser not started: {error}");
+  }
 
   tokio::spawn({
     let version = env!("CARGO_PKG_VERSION");
@@ -55,28 +55,4 @@ pub async fn main(args: StdioCommand) -> anyhow::Result<()> {
 
   server.waiting().await?;
   Ok(())
-}
-
-async fn launch_chrome(args: &StdioCommand) -> anyhow::Result<BrowserInstance> {
-  let chrome_binary_path = match args.chrome_binary_path.as_ref() {
-    Some(path) => {
-      if !path.is_file() {
-        return Err(anyhow::anyhow!(
-          "chrome binary not found at {}",
-          path.display()
-        ));
-      }
-      path.clone()
-    }
-    None => chrome_binary_default()?,
-  };
-
-  BrowserInstance::launch(&chrome_binary_path, args.headless).await
-}
-
-async fn connect_to_running_chrome() -> anyhow::Result<BrowserInstance> {
-  let user_data_dir = chrome_user_data_dir()?;
-  let web_socket_url = devtools_active_port_ws_url(&user_data_dir)?;
-
-  BrowserInstance::connect(&web_socket_url).await
 }

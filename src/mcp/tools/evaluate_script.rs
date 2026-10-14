@@ -84,10 +84,7 @@ pub async fn evaluate_script(
   // Dialog handling is intentionally unsupported: CDP exposes no dialog-query API.
   let _ = dialog_action;
 
-  let page = tool_context
-    .page(page_id)
-    .await
-    .ok_or_else(|| ErrorData::invalid_params(format!("No page found with id {page_id}"), None))?;
+  let page = tool_context.require_page(page_id).await?;
 
   let object_ids = resolve_arguments(&tool_context, page_id, &page, args.as_deref()).await?;
 

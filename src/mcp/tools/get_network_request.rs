@@ -51,10 +51,7 @@ pub async fn get_network_request(
     response_file_path,
   }): Parameters<GetNetworkRequestRequest>,
 ) -> Result<CallToolResult, ErrorData> {
-  let page = tool_context
-    .page(page_id)
-    .await
-    .ok_or_else(|| ErrorData::invalid_params(format!("No page found with id {page_id}"), None))?;
+  let page = tool_context.require_page(page_id).await?;
 
   // Upstream falls back to the request selected in the DevTools Network panel,
   // which requires the bundled DevTools frontend and has no equivalent here.

@@ -54,6 +54,7 @@ pub async fn new_page(
               .await
           })
           .await
+          .map_err(internal)?
           .map_err(internal)?;
         tool_context.set_isolated_context(name, id.clone()).await;
         id
@@ -72,6 +73,7 @@ pub async fn new_page(
       browser.new_page(params).await
     })
     .await
+    .map_err(internal)?
     .map_err(internal)?;
 
   settle(&page, &url, background, timeout).await;

@@ -35,10 +35,7 @@ pub async fn press_key(
 ) -> Result<CallToolResult, ErrorData> {
   let tokens = parse_key(&key).map_err(|error| ErrorData::invalid_params(error, None))?;
 
-  let page = tool_context
-    .page(page_id)
-    .await
-    .ok_or_else(|| ErrorData::invalid_params(format!("No page found with id {page_id}"), None))?;
+  let page = tool_context.require_page(page_id).await?;
 
   dispatch(&page, &tokens)
     .await

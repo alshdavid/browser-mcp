@@ -32,12 +32,7 @@ pub async fn performance_analyze_insight(
     insight_name,
   }): Parameters<PerformanceAnalyzeInsightRequest>,
 ) -> Result<CallToolResult, ErrorData> {
-  if tool_context.page(page_id).await.is_none() {
-    return Err(ErrorData::invalid_params(
-      format!("No page found with id {page_id}"),
-      None,
-    ));
-  }
+  let _ = tool_context.require_page(page_id).await?;
 
   let Some(trace) = tool_context.last_recorded_trace().await else {
     return Ok(CallToolResult::success(vec![ContentBlock::text(

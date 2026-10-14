@@ -25,10 +25,7 @@ pub async fn get_console_message(
   tool_context: ToolContext,
   Parameters(GetConsoleMessageRequest { page_id, msgid }): Parameters<GetConsoleMessageRequest>,
 ) -> Result<CallToolResult, ErrorData> {
-  tool_context
-    .page(page_id)
-    .await
-    .ok_or_else(|| ErrorData::invalid_params(format!("No page found with id {page_id}"), None))?;
+  let _ = tool_context.require_page(page_id).await?;
 
   let known = tool_context.console_messages(page_id, true).await;
   let msgnum = known

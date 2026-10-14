@@ -68,12 +68,7 @@ pub async fn lighthouse_audit(
     output_dir_path: _output_dir_path,
   }): Parameters<LighthouseAuditRequest>,
 ) -> Result<CallToolResult, ErrorData> {
-  if tool_context.page(page_id).await.is_none() {
-    return Err(ErrorData::invalid_params(
-      format!("No page found with id {page_id}"),
-      None,
-    ));
-  }
+  let _ = tool_context.require_page(page_id).await?;
 
   Ok(CallToolResult::success(vec![ContentBlock::text(
     UNAVAILABLE_MESSAGE,

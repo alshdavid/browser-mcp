@@ -111,10 +111,7 @@ pub async fn list_network_requests(
     include_preserved_requests,
   }): Parameters<ListNetworkRequestsRequest>,
 ) -> Result<CallToolResult, ErrorData> {
-  tool_context
-    .page(page_id)
-    .await
-    .ok_or_else(|| ErrorData::invalid_params(format!("No page found with id {page_id}"), None))?;
+  let _ = tool_context.require_page(page_id).await?;
 
   let mut requests = tool_context
     .network_requests(page_id, include_preserved_requests.unwrap_or(false))

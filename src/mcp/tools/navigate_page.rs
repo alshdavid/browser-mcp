@@ -52,12 +52,7 @@ pub async fn navigate_page(
     timeout,
   }): Parameters<NavigatePageRequest>,
 ) -> Result<CallToolResult, ErrorData> {
-  let Some(page) = tool_context.page(page_id).await else {
-    return Err(ErrorData::invalid_params(
-      format!("No page found with id {page_id}"),
-      None,
-    ));
-  };
+  let page = tool_context.require_page(page_id).await?;
 
   let Some(r#type) = r#type.or_else(|| url.as_ref().map(|_| NavigationType::Url)) else {
     return Err(ErrorData::invalid_params(

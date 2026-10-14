@@ -48,3 +48,13 @@ open, signing in with your existing profile. Start Chrome at least once and
 enable the remote debugging server at `chrome://inspect/#remote-debugging`; the
 port Chrome writes to its profile's `DevToolsActivePort` file is what the flag
 connects to. Chrome is left running when the server exits.
+
+## Lazy startup
+
+Starting the server does not start Chrome. The browser is launched, or attached
+to, on the first tool call that needs it, and that instance is then reused for
+the life of the process. A session that only lists tools never opens a browser,
+and the first tool call pays the startup cost once.
+
+When attaching to a browser that already has tabs open, the first call that
+needs a page adopts the existing tab rather than reporting that no page exists.

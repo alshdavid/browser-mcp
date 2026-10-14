@@ -98,10 +98,7 @@ pub async fn emulate(
     extra_http_headers,
   }): Parameters<EmulateRequest>,
 ) -> Result<CallToolResult, ErrorData> {
-  let page = tool_context
-    .page(page_id)
-    .await
-    .ok_or_else(|| ErrorData::invalid_params(format!("No page found with id {page_id}"), None))?;
+  let page = tool_context.require_page(page_id).await?;
 
   let geolocation = geolocation.as_deref().map(parse_geolocation).transpose()?;
   let viewport = viewport.as_deref().map(parse_viewport).transpose()?;
@@ -137,6 +134,7 @@ pub async fn emulate(
     None => tool_context
       .with_browser(async |browser| browser.user_agent().await)
       .await
+      .map_err(internal)?
       .map_err(internal)?,
   };
   page

@@ -137,10 +137,7 @@ pub async fn list_console_messages(
     service_worker_id,
   }): Parameters<ListConsoleMessagesRequest>,
 ) -> Result<CallToolResult, ErrorData> {
-  tool_context
-    .page(page_id)
-    .await
-    .ok_or_else(|| ErrorData::invalid_params(format!("No page found with id {page_id}"), None))?;
+  let _ = tool_context.require_page(page_id).await?;
 
   if let Some(service_worker_id) = service_worker_id {
     return Ok(CallToolResult::success(vec![ContentBlock::text(format!(

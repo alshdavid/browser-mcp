@@ -23,6 +23,7 @@ use futures_util::StreamExt as _;
 use tokio::sync::Mutex;
 
 use crate::browser::BrowserInstance;
+use crate::browser::BrowserManager;
 
 #[derive(Debug, Clone)]
 struct PageEntry {
@@ -266,9 +267,13 @@ pub struct TraceInsight {
 
 #[derive(Debug, Clone)]
 pub struct ToolContext {
-  browser: Arc<Mutex<BrowserInstance>>,
+  browser: Arc<Mutex<Option<BrowserInstance>>>,
+  browser_manager: BrowserManager,
   isolated_contexts: Arc<Mutex<HashMap<String, BrowserContextId>>>,
   pages: Arc<Mutex<Vec<PageEntry>>>,
+  // Serializes the decision to adopt an existing tab, so two concurrent first
+  // calls cannot each register a different one under the same id.
+  adoption: Arc<Mutex<()>>,
   next_page_id: Arc<Mutex<f64>>,
   next_snapshot_id: Arc<Mutex<u64>>,
   running_performance_trace: Arc<Mutex<bool>>,
@@ -276,11 +281,13 @@ pub struct ToolContext {
 }
 
 impl ToolContext {
-  pub fn new(browser: BrowserInstance) -> Self {
+  pub fn new(browser_manager: BrowserManager) -> Self {
     Self {
-      browser: Arc::new(Mutex::new(browser)),
+      browser: Arc::new(Mutex::new(None)),
+      browser_manager,
       isolated_contexts: Arc::new(Mutex::new(HashMap::new())),
       pages: Arc::new(Mutex::new(Vec::new())),
+      adoption: Arc::new(Mutex::new(())),
       next_page_id: Arc::new(Mutex::new(1.0)),
       next_snapshot_id: Arc::new(Mutex::new(1)),
       running_performance_trace: Arc::new(Mutex::new(false)),
@@ -317,12 +324,34 @@ impl ToolContext {
     self.recorded_traces.lock().await.last().cloned()
   }
 
+  // The browser is launched or attached on first use and then held for the life
+  // of the process, so a session that only lists tools never starts Chrome.
+  pub async fn browser(&self) -> Result<BrowserInstance, chromiumoxide::error::CdpError> {
+    let mut browser = self.browser.lock().await;
+    if browser.is_none() {
+      *browser = Some(
+        self
+          .browser_manager
+          .ensure()
+          .await
+          .map_err(|error| chromiumoxide::error::CdpError::msg(error.to_string()))?,
+      );
+    }
+
+    Ok(
+      browser
+        .as_ref()
+        .expect("browser was just connected")
+        .clone(),
+    )
+  }
+
   pub async fn with_browser<T>(
     &self,
     f: impl AsyncFnOnce(&Browser) -> T,
-  ) -> T {
-    let browser = self.browser.lock().await;
-    f(browser.browser()).await
+  ) -> Result<T, chromiumoxide::error::CdpError> {
+    let browser = self.browser().await?;
+    Ok(f(browser.browser()).await)
   }
 
   pub async fn isolated_context(
@@ -349,6 +378,70 @@ impl ToolContext {
     *next_page_id += 1.0;
     drop(next_page_id);
 
+    self.register_page_with_id(id, page).await;
+
+    id
+  }
+
+  // A page requested before the browser exists starts it on demand, and an
+  // attached browser that already has tabs adopts the first of them rather than
+  // reporting that no page exists.
+  pub async fn page(
+    &self,
+    id: f64,
+  ) -> Result<Option<Page>, chromiumoxide::error::CdpError> {
+    if let Some(page) = self.registered_page(id).await {
+      return Ok(Some(page));
+    }
+
+    let _adoption = self.adoption.lock().await;
+
+    if let Some(page) = self.registered_page(id).await {
+      return Ok(Some(page));
+    }
+
+    let browser = self.browser().await?;
+    if self.page_count().await > 0 {
+      return Ok(None);
+    }
+
+    let Ok(pages) = browser.browser().pages().await else {
+      return Ok(None);
+    };
+
+    let Some(page) = pages.into_iter().next() else {
+      return Ok(None);
+    };
+
+    self.register_page_with_id(id, page.clone()).await;
+
+    Ok(Some(page))
+  }
+
+  async fn registered_page(
+    &self,
+    id: f64,
+  ) -> Option<Page> {
+    self
+      .pages
+      .lock()
+      .await
+      .iter()
+      .find(|entry| entry.id == id)
+      .map(|entry| entry.page.clone())
+  }
+
+  pub async fn require_page(&self, id: f64) -> Result<Page, rmcp::ErrorData> {
+    self.page(id).await.map_err(page_error)?.ok_or_else(|| {
+      rmcp::ErrorData::invalid_params(format!("No page found with id {id}"), None)
+    })
+  }
+
+  async fn register_page_with_id(
+    &self,
+    id: f64,
+    page: Page,
+  ) {
     self.pages.lock().await.push(PageEntry {
       id,
       page: page.clone(),
@@ -361,21 +454,6 @@ impl ToolContext {
     watch_dialogs(page.clone(), id, self.pages.clone());
     collect_console_messages(page.clone(), id, self.pages.clone());
     collect_network_requests(page, id, self.pages.clone());
-
-    id
-  }
-
-  pub async fn page(
-    &self,
-    id: f64,
-  ) -> Option<Page> {
-    self
-      .pages
-      .lock()
-      .await
-      .iter()
-      .find(|entry| entry.id == id)
-      .map(|entry| entry.page.clone())
   }
 
   pub async fn page_count(&self) -> usize {
@@ -570,6 +648,10 @@ impl ToolContext {
       entry.snapshot = Some(snapshot);
     }
   }
+}
+
+pub(crate) fn page_error(error: chromiumoxide::error::CdpError) -> rmcp::ErrorData {
+  rmcp::ErrorData::internal_error(error.to_string(), None)
 }
 
 fn watch_dialogs(

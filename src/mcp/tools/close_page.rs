@@ -19,12 +19,7 @@ pub async fn close_page(
   tool_context: ToolContext,
   Parameters(ClosePageRequest { page_id }): Parameters<ClosePageRequest>,
 ) -> Result<CallToolResult, ErrorData> {
-  let Some(page) = tool_context.page(page_id).await else {
-    return Err(ErrorData::invalid_params(
-      format!("No page found with id {page_id}"),
-      None,
-    ));
-  };
+  let page = tool_context.require_page(page_id).await?;
 
   if tool_context.page_count().await <= 1 {
     return Ok(CallToolResult::success(vec![ContentBlock::text(

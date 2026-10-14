@@ -68,10 +68,7 @@ pub async fn performance_start_trace(
     ));
   }
 
-  let page = tool_context
-    .page(page_id)
-    .await
-    .ok_or_else(|| ErrorData::invalid_params(format!("No page found with id {page_id}"), None))?;
+  let page = tool_context.require_page(page_id).await?;
 
   tool_context.set_running_performance_trace(true).await;
 

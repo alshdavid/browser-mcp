@@ -68,10 +68,7 @@ pub async fn take_snapshot(
     file_path,
   }): Parameters<TakeSnapshotRequest>,
 ) -> Result<CallToolResult, ErrorData> {
-  let page = tool_context
-    .page(page_id)
-    .await
-    .ok_or_else(|| ErrorData::invalid_params(format!("No page found with id {page_id}"), None))?;
+  let page = tool_context.require_page(page_id).await?;
 
   let verbose = verbose.unwrap_or(false);
   let nodes = accessibility_tree(&page).await.map_err(internal)?;
