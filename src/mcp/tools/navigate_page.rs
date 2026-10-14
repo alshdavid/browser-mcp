@@ -15,7 +15,10 @@ use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
 use crate::mcp::tool_context::ToolContext;
+use crate::mcp::tools::common::DialogAction;
 use crate::mcp::tools::common::NavigationType;
+use crate::mcp::tools::handle_dialog::DialogResponse;
+use crate::mcp::tools::handle_dialog::DialogWatcher;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 const SETTLE_TIMEOUT: Duration = Duration::from_millis(500);
@@ -36,6 +39,10 @@ pub struct NavigatePageRequest {
   )]
   pub init_script: Option<String>,
   #[schemars(
+    description = "Whether to auto accept or beforeunload dialogs triggered by this navigation. Default is accept."
+  )]
+  pub handle_before_unload: Option<DialogAction>,
+  #[schemars(
     description = "Maximum wait time in milliseconds. If set to 0, the default timeout will be used."
   )]
   pub timeout: Option<i64>,
@@ -49,6 +56,7 @@ pub async fn navigate_page(
     url,
     ignore_cache,
     init_script,
+    handle_before_unload,
     timeout,
   }): Parameters<NavigatePageRequest>,
 ) -> Result<CallToolResult, ErrorData> {
@@ -84,7 +92,21 @@ pub async fn navigate_page(
     None => None,
   };
 
+  // Only a beforeunload dialog is auto-answered here; the navigation options
+  // leave every other dialog kind to handle_dialog.
+  let before_unload = handle_before_unload.unwrap_or(DialogAction::Accept);
+  let watcher = DialogWatcher::start(
+    page.clone(),
+    match before_unload {
+      DialogAction::Accept => DialogResponse::Accept,
+      DialogAction::Dismiss => DialogResponse::Dismiss,
+    },
+    true,
+  );
+
   let outcome = run(&page, &r#type, url.as_deref(), ignore_cache, timeout).await;
+
+  let handled = watcher.finish().await;
 
   if let Some(identifier) = init_script {
     let _ = page
@@ -112,6 +134,19 @@ pub async fn navigate_page(
       timeout.as_millis()
     )),
     Err(error) => lines.push(format!("Unable to {}: {error}.", describe(r#type))),
+  }
+
+  if handled {
+    lines.push(format!(
+      "{} a beforeunload dialog.",
+      match before_unload {
+        DialogAction::Accept => "Accepted",
+        DialogAction::Dismiss => "Dismissed",
+      }
+    ));
+    // The watcher that tracks dialogs for handle_dialog also saw this one, but
+    // it is already resolved, so it must not read as still open.
+    tool_context.clear_dialog(page_id).await;
   }
 
   Ok(CallToolResult::success(vec![ContentBlock::text(

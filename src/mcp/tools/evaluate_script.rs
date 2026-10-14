@@ -17,6 +17,8 @@ use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
 use crate::mcp::tool_context::ToolContext;
+use crate::mcp::tools::handle_dialog::DialogResponse;
+use crate::mcp::tools::handle_dialog::DialogWatcher;
 
 const WRAPPER_FUNCTION: &str =
   "async function (...args) { return JSON.stringify(await this(...args)); }";
@@ -81,10 +83,15 @@ pub async fn evaluate_script(
     wait_for_stable_dom,
   }): Parameters<EvaluateScriptRequest>,
 ) -> Result<CallToolResult, ErrorData> {
-  // Dialog handling is intentionally unsupported: CDP exposes no dialog-query API.
-  let _ = dialog_action;
-
   let page = tool_context.require_page(page_id).await?;
+
+  // A script that raises a dialog blocks the evaluation until it is answered,
+  // and nothing else can answer it while this call is in flight.
+  let watcher = DialogWatcher::start(
+    page.clone(),
+    DialogResponse::parse(dialog_action.as_deref().unwrap_or("accept")),
+    false,
+  );
 
   let object_ids = resolve_arguments(&tool_context, page_id, &page, args.as_deref()).await?;
 
@@ -101,6 +108,12 @@ pub async fn evaluate_script(
           .map_err(|error| ErrorData::internal_error(error.to_string(), None))?,
       )
       .await;
+  }
+
+  // The watcher that tracks dialogs for handle_dialog also saw any dialog this
+  // script raised, but it is already resolved.
+  if watcher.finish().await {
+    tool_context.clear_dialog(page_id).await;
   }
 
   match file_path {

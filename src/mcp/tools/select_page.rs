@@ -5,6 +5,7 @@ use rmcp::model::ContentBlock;
 use rmcp::schemars;
 
 use crate::mcp::tool_context::ToolContext;
+use crate::mcp::tools::list_pages::page_list;
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
@@ -24,9 +25,18 @@ pub async fn select_page(
     bring_to_front,
   }): Parameters<SelectPageRequest>,
 ) -> Result<CallToolResult, ErrorData> {
-  let _ = tool_context;
-  let _ = (page_id, bring_to_front);
+  let page = tool_context.require_page(page_id).await?;
+
+  tool_context.set_selected_page(page_id).await;
+
+  if bring_to_front.unwrap_or(false) {
+    page
+      .bring_to_front()
+      .await
+      .map_err(|error| ErrorData::internal_error(error.to_string(), None))?;
+  }
+
   Ok(CallToolResult::success(vec![ContentBlock::text(
-    "not implemented",
+    page_list(&tool_context).await?,
   )]))
 }

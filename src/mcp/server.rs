@@ -306,7 +306,9 @@ impl BrowserServer {
     resize_page(self.tool_context.clone(), Parameters(request)).await
   }
 
-  #[tool(description = "Select a page as a context for future tool calls.")]
+  #[tool(
+    description = "Select a page. The selection is marked in list_pages, and bringToFront brings the page's tab to the front."
+  )]
   async fn select_page(
     &self,
     Parameters(request): Parameters<SelectPageRequest>,

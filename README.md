@@ -53,8 +53,10 @@ connects to. Chrome is left running when the server exits.
 
 Starting the server does not start Chrome. The browser is launched, or attached
 to, on the first tool call that needs it, and that instance is then reused for
-the life of the process. A session that only lists tools never opens a browser,
+the life of the process. A session that never calls a tool never opens a browser,
 and the first tool call pays the startup cost once.
 
-When attaching to a browser that already has tabs open, the first call that
-needs a page adopts the existing tab rather than reporting that no page exists.
+Call `list_pages` to see the tabs that are already open, or `new_page` to open
+one. The other page-scoped tools address a page by the id that either returns.
+`select_page` marks a page as selected, which `list_pages` reports, and can bring
+its tab to the front.

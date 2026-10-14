@@ -1,8 +1,13 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
+use std::time::Instant;
 
 use chromiumoxide::Browser;
 use chromiumoxide::Page;
+use chromiumoxide::cdp::browser_protocol::audits::EnableParams as AuditsEnableParams;
+use chromiumoxide::cdp::browser_protocol::audits::EventIssueAdded;
+use chromiumoxide::cdp::browser_protocol::audits::InspectorIssue;
 use chromiumoxide::cdp::browser_protocol::browser::BrowserContextId;
 use chromiumoxide::cdp::browser_protocol::network::EnableParams;
 use chromiumoxide::cdp::browser_protocol::network::EventLoadingFailed;
@@ -24,6 +29,12 @@ use tokio::sync::Mutex;
 
 use crate::browser::BrowserInstance;
 use crate::browser::BrowserManager;
+
+// Chromiumoxide learns the browser's targets and each target's session from CDP
+// events, so right after connecting `pages()` can still come back empty even
+// though the browser has tabs. Listing waits this long for those events.
+const BROWSER_PAGES_TIMEOUT: Duration = Duration::from_secs(2);
+const BROWSER_PAGES_POLL_INTERVAL: Duration = Duration::from_millis(20);
 
 #[derive(Debug, Clone)]
 struct PageEntry {
@@ -271,9 +282,8 @@ pub struct ToolContext {
   browser_manager: BrowserManager,
   isolated_contexts: Arc<Mutex<HashMap<String, BrowserContextId>>>,
   pages: Arc<Mutex<Vec<PageEntry>>>,
-  // Serializes the decision to adopt an existing tab, so two concurrent first
-  // calls cannot each register a different one under the same id.
-  adoption: Arc<Mutex<()>>,
+  selected_page: Arc<Mutex<Option<f64>>>,
+  closed_targets: Arc<Mutex<Vec<TargetId>>>,
   next_page_id: Arc<Mutex<f64>>,
   next_snapshot_id: Arc<Mutex<u64>>,
   running_performance_trace: Arc<Mutex<bool>>,
@@ -287,7 +297,8 @@ impl ToolContext {
       browser_manager,
       isolated_contexts: Arc::new(Mutex::new(HashMap::new())),
       pages: Arc::new(Mutex::new(Vec::new())),
-      adoption: Arc::new(Mutex::new(())),
+      selected_page: Arc::new(Mutex::new(None)),
+      closed_targets: Arc::new(Mutex::new(Vec::new())),
       next_page_id: Arc::new(Mutex::new(1.0)),
       next_snapshot_id: Arc::new(Mutex::new(1)),
       running_performance_trace: Arc::new(Mutex::new(false)),
@@ -334,7 +345,7 @@ impl ToolContext {
           .browser_manager
           .ensure()
           .await
-          .map_err(|error| chromiumoxide::error::CdpError::msg(error.to_string()))?,
+          .map_err(|error| chromiumoxide::error::CdpError::msg(format!("{error:#}")))?,
       );
     }
 
@@ -378,70 +389,6 @@ impl ToolContext {
     *next_page_id += 1.0;
     drop(next_page_id);
 
-    self.register_page_with_id(id, page).await;
-
-    id
-  }
-
-  // A page requested before the browser exists starts it on demand, and an
-  // attached browser that already has tabs adopts the first of them rather than
-  // reporting that no page exists.
-  pub async fn page(
-    &self,
-    id: f64,
-  ) -> Result<Option<Page>, chromiumoxide::error::CdpError> {
-    if let Some(page) = self.registered_page(id).await {
-      return Ok(Some(page));
-    }
-
-    let _adoption = self.adoption.lock().await;
-
-    if let Some(page) = self.registered_page(id).await {
-      return Ok(Some(page));
-    }
-
-    let browser = self.browser().await?;
-    if self.page_count().await > 0 {
-      return Ok(None);
-    }
-
-    let Ok(pages) = browser.browser().pages().await else {
-      return Ok(None);
-    };
-
-    let Some(page) = pages.into_iter().next() else {
-      return Ok(None);
-    };
-
-    self.register_page_with_id(id, page.clone()).await;
-
-    Ok(Some(page))
-  }
-
-  async fn registered_page(
-    &self,
-    id: f64,
-  ) -> Option<Page> {
-    self
-      .pages
-      .lock()
-      .await
-      .iter()
-      .find(|entry| entry.id == id)
-      .map(|entry| entry.page.clone())
-  }
-
-  pub async fn require_page(&self, id: f64) -> Result<Page, rmcp::ErrorData> {
-    self.page(id).await.map_err(page_error)?.ok_or_else(|| {
-      rmcp::ErrorData::invalid_params(format!("No page found with id {id}"), None)
-    })
-  }
-
-  async fn register_page_with_id(
-    &self,
-    id: f64,
-    page: Page,
-  ) {
     self.pages.lock().await.push(PageEntry {
       id,
       page: page.clone(),
@@ -454,12 +401,109 @@ impl ToolContext {
     watch_dialogs(page.clone(), id, self.pages.clone());
     collect_console_messages(page.clone(), id, self.pages.clone());
     collect_network_requests(page, id, self.pages.clone());
+
+    id
+  }
+
+  // Reading the registry never starts the browser: a page can only have been
+  // registered by a call that already started it.
+  pub async fn page(
+    &self,
+    id: f64,
+  ) -> Option<Page> {
+    self
+      .pages
+      .lock()
+      .await
+      .iter()
+      .find(|entry| entry.id == id)
+      .map(|entry| entry.page.clone())
+  }
+
+  pub async fn require_page(
+    &self,
+    id: f64,
+  ) -> Result<Page, rmcp::ErrorData> {
+    self
+      .page(id)
+      .await
+      .ok_or_else(|| rmcp::ErrorData::invalid_params(format!("No page found with id {id}"), None))
+  }
+
+  // Ids are never reused, so a selection left pointing at a closed page can
+  // never mark a different one.
+  pub async fn selected_page(&self) -> Option<f64> {
+    *self.selected_page.lock().await
+  }
+
+  pub async fn set_selected_page(
+    &self,
+    id: f64,
+  ) {
+    *self.selected_page.lock().await = Some(id);
+  }
+
+  // Starts the browser if it is not running yet, then brings the page registry
+  // in line with the tabs the browser actually has: unseen tabs are registered
+  // so the returned ids work with every other tool, and tabs that have gone away
+  // are forgotten.
+  pub async fn browser_pages(&self) -> Result<Vec<(f64, Page)>, chromiumoxide::error::CdpError> {
+    let browser = self.browser().await?;
+    let mut pages = await_browser_pages(&browser).await;
+    pages.sort_by(|left, right| left.target_id().inner().cmp(right.target_id().inner()));
+
+    {
+      let mut closed = self.closed_targets.lock().await;
+      closed.retain(|target_id| pages.iter().any(|page| page.target_id() == target_id));
+      pages.retain(|page| !closed.contains(page.target_id()));
+    }
+
+    let alive = pages
+      .iter()
+      .map(|page| page.target_id().clone())
+      .collect::<Vec<_>>();
+
+    let known = {
+      let mut registry = self.pages.lock().await;
+      let known = registry
+        .iter()
+        .map(|entry| (entry.page.target_id().clone(), entry.id))
+        .collect::<Vec<_>>();
+      registry.retain(|entry| alive.contains(entry.page.target_id()));
+      known
+    };
+
+    let mut listed = Vec::new();
+    for page in pages {
+      let id = match known
+        .iter()
+        .find(|(target_id, _)| target_id == page.target_id())
+      {
+        Some((_, id)) => *id,
+        None => self.register_page(page.clone()).await,
+      };
+
+      listed.push((id, page));
+    }
+
+    listed.sort_by(|(left, _), (right, _)| left.total_cmp(right));
+
+    let mut selected = self.selected_page.lock().await;
+    if selected.is_some_and(|id| !listed.iter().any(|(listed, _)| *listed == id)) {
+      *selected = None;
+    }
+
+    Ok(listed)
   }
 
   pub async fn page_count(&self) -> usize {
     self.pages.lock().await.len()
   }
 
+  // The browser keeps reporting a target for a moment after it is closed, so the
+  // target is remembered here until the browser stops mentioning it. Without
+  // that, a listing straight after a close re-registers the dying target under a
+  // fresh id and offers a page that cannot be used.
   pub async fn drop_page_by_target(
     &self,
     target_id: &TargetId,
@@ -469,6 +513,8 @@ impl ToolContext {
       .lock()
       .await
       .retain(|entry| entry.page.target_id() != target_id);
+
+    self.closed_targets.lock().await.push(target_id.clone());
   }
 
   pub async fn console_messages(
@@ -650,8 +696,22 @@ impl ToolContext {
   }
 }
 
-pub(crate) fn page_error(error: chromiumoxide::error::CdpError) -> rmcp::ErrorData {
-  rmcp::ErrorData::internal_error(error.to_string(), None)
+async fn await_browser_pages(browser: &BrowserInstance) -> Vec<Page> {
+  let deadline = Instant::now() + BROWSER_PAGES_TIMEOUT;
+
+  loop {
+    if let Ok(pages) = browser.browser().pages().await
+      && !pages.is_empty()
+    {
+      return pages;
+    }
+
+    if Instant::now() >= deadline {
+      return Vec::new();
+    }
+
+    tokio::time::sleep(BROWSER_PAGES_POLL_INTERVAL).await;
+  }
 }
 
 fn watch_dialogs(
@@ -686,7 +746,49 @@ fn collect_console_messages(
   // list_console_messages call that reads them.
   watch_console_api_calls(page.clone(), page_id, pages.clone());
   watch_exceptions(page.clone(), page_id, pages.clone());
+  collect_browser_issues(page.clone(), page_id, pages.clone());
   watch_navigations(page, page_id, pages);
+}
+
+// Issues come from the browser rather than from page script, and are also read
+// back through the console tools as the `issue` type.
+fn collect_browser_issues(
+  page: Page,
+  page_id: f64,
+  pages: Arc<Mutex<Vec<PageEntry>>>,
+) {
+  tokio::spawn(async move {
+    let _ = page.execute(AuditsEnableParams::default()).await;
+
+    let Ok(mut events) = page.event_listener::<EventIssueAdded>().await else {
+      return;
+    };
+
+    while let Some(event) = events.next().await {
+      let message = ConsoleMessage {
+        message_type: "issue".to_owned(),
+        text: format_issue(&event.issue),
+        ..ConsoleMessage::default()
+      };
+
+      push_console_message(&pages, page_id, message).await;
+    }
+  });
+}
+
+// DevTools renders an issue with prose that lives in its frontend. The protocol
+// carries the issue code and the single detail the issue was raised with, so
+// that, and not an invented description, is what is reported.
+fn format_issue(issue: &InspectorIssue) -> String {
+  let code = serde_json::to_value(&issue.code)
+    .ok()
+    .and_then(|code| code.as_str().map(str::to_owned))
+    .unwrap_or_else(|| "Issue".to_owned());
+
+  match serde_json::to_string(&issue.details) {
+    Ok(details) if details != "{}" => format!("{code}: {details}"),
+    _ => code,
+  }
 }
 
 fn watch_console_api_calls(

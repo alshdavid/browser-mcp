@@ -27,10 +27,6 @@ pub async fn main(args: StdioCommand) -> anyhow::Result<()> {
     auto_connect: args.auto_connect,
   }));
 
-  if let Err(error) = tool_context.browser().await {
-    eprintln!("Browser not started: {error}");
-  }
-
   tokio::spawn({
     let version = env!("CARGO_PKG_VERSION");
     async move {

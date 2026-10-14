@@ -34,7 +34,12 @@ impl BrowserManager {
       *instance = Some(connect_or_launch(&self.options).await?);
     }
 
-    Ok(instance.as_ref().expect("browser was just connected").clone())
+    Ok(
+      instance
+        .as_ref()
+        .expect("browser was just connected")
+        .clone(),
+    )
   }
 }
 
